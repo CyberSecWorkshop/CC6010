@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Week 4 — Memory Forensics: Your First Investigation</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --dark:     #0E1420;
+  --card:     #161E2E;
+  --panel:    #0B1120;
+  --teal:     #1A6B72;
+  --teal-mid: #2A9BA5;
+  --orange:   #E07B39;
+  --green:    #22C55E;
+  --cyan:     #06B6D4;
+  --red:      #EF4444;
+  --purple:   #8B5CF6;
+  --yellow:   #EAB308;
+  --text:     #E2E8F0;
+  --muted:    #94A3B8;
+  --white:    #FFFFFF;
+  --mono:     'Share Tech Mono', monospace;
+  --head:     'Rajdhani', sans-serif;
+  --body:     'Inter', sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--dark);color:var(--text);font-family:var(--body);font-size:15px;line-height:1.85;display:flex;flex-direction:column;min-height:100vh}
+
+/* SIDEBAR */
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:230px;background:var(--panel);border-right:1px solid rgba(42,155,165,0.22);overflow-y:auto;z-index:100;padding-bottom:80px}
+.sb-logo{padding:20px 18px 14px;border-bottom:1px solid rgba(42,155,165,0.18);margin-bottom:4px}
+.sb-week{font-family:var(--mono);font-size:9px;letter-spacing:2.5px;color:var(--cyan);display:block;margin-bottom:5px;text-transform:uppercase}
+.sb-title{font-family:var(--head);font-size:13.5px;font-weight:700;color:var(--teal-mid);line-height:1.35}
+.nav-group{padding:12px 18px 2px;font-family:var(--mono);font-size:8px;letter-spacing:2.5px;color:rgba(148,163,184,0.55);text-transform:uppercase}
+.sidebar a{display:block;padding:5px 18px 5px 22px;font-size:12px;color:var(--muted);text-decoration:none;border-left:2px solid transparent;transition:all .18s;line-height:1.4}
+.sidebar a:hover,.sidebar a.active{color:var(--cyan);border-left-color:var(--cyan);background:rgba(6,182,212,0.05)}
+.sidebar a.flag-a{color:#86EFAC}
+.sidebar a.flag-a:hover,.sidebar a.flag-a.active{color:var(--green);border-left-color:var(--green);background:rgba(34,197,94,0.06)}
+.sidebar a.warn-a{color:#FCA5A5}
+.sidebar a.warn-a:hover,.sidebar a.warn-a.active{color:var(--red);border-left-color:var(--red)}
+
+/* LAYOUT */
+.layout{display:flex;flex:1}
+.main{margin-left:230px;padding:0 46px 80px;max-width:960px;width:100%}
+
+/* HERO */
+.hero{background:linear-gradient(160deg,#080E1C 0%,#0D1A30 55%,#080E1C 100%);border-bottom:2px solid var(--teal);padding:52px 46px 44px;margin:0 -46px 48px;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-80px;right:-80px;width:380px;height:380px;background:radial-gradient(circle,rgba(26,107,114,0.16),transparent 65%);pointer-events:none}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(42,155,165,0.12);border:1px solid rgba(42,155,165,0.5);color:var(--cyan);font-family:var(--mono);font-size:10px;letter-spacing:3px;padding:5px 14px;border-radius:3px;margin-bottom:20px;text-transform:uppercase}
+.hero h1{font-family:var(--head);font-size:44px;font-weight:700;color:var(--white);line-height:1.1;margin-bottom:14px}
+.hero h1 em{color:var(--teal-mid);font-style:normal}
+.hero p.tagline{font-size:15px;color:var(--muted);font-weight:300;max-width:580px;margin-bottom:28px;line-height:1.7}
+.chips{display:flex;flex-wrap:wrap;gap:9px}
+.chip{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:20px;padding:4px 14px;font-size:12px;color:var(--muted)}
+.chip b{color:var(--text);font-weight:500}
+
+/* DIVIDERS */
+.divider{margin:50px 0 26px;padding:12px 20px 12px 26px;background:var(--panel);border:1px solid rgba(42,155,165,0.28);border-left:5px solid var(--teal-mid);border-radius:0 7px 7px 0;font-family:var(--head);font-size:15px;font-weight:700;color:var(--cyan);letter-spacing:2.5px;text-transform:uppercase;display:flex;align-items:center;gap:10px}
+.divider.orange-d{border-left-color:var(--orange);color:var(--orange)}
+.divider.red-d{border-left-color:var(--red);color:var(--red)}
+.divider.green-d{border-left-color:var(--green);color:var(--green)}
+.divider.purple-d{border-left-color:var(--purple);color:var(--purple)}
+
+h2.sec{font-family:var(--head);font-size:23px;font-weight:700;color:var(--teal-mid);margin:30px 0 12px;border-bottom:1px solid rgba(42,155,165,0.22);padding-bottom:8px}
+h3.sub{font-family:var(--head);font-size:15px;font-weight:700;color:var(--orange);letter-spacing:1px;text-transform:uppercase;margin:20px 0 8px}
+p{margin-bottom:14px;font-size:14.5px;line-height:1.85}
+strong{font-weight:600}
+code{font-family:var(--mono);font-size:12.5px;color:var(--cyan);background:rgba(6,182,212,0.09);padding:1px 6px;border-radius:3px}
+ul.normal{padding-left:22px;margin-bottom:14px}
+ul.normal li{margin-bottom:6px;font-size:14.5px;line-height:1.7}
+
+/* SCENARIO CARD */
+.scenario-card{background:linear-gradient(135deg,#0B1422,#101E38);border:1px solid rgba(224,123,57,0.4);border-left:5px solid var(--orange);border-radius:8px;padding:26px 30px;margin:18px 0;position:relative;overflow:hidden}
+.scenario-card::after{content:'🕵️';position:absolute;right:20px;top:16px;font-size:38px;opacity:.13}
+.sc-ref{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:rgba(224,123,57,0.6);margin-bottom:12px;text-transform:uppercase}
+.sc-body{font-size:14.5px;color:#CCCCCC;line-height:1.85}
+.sc-body p{color:#CCCCCC;font-size:14.5px}
+
+/* CONCEPT BOX — big explanations */
+.concept{background:var(--card);border:1px solid rgba(42,155,165,0.22);border-radius:10px;margin:18px 0;overflow:hidden}
+.concept-header{background:rgba(42,155,165,0.1);border-bottom:1px solid rgba(42,155,165,0.18);padding:14px 22px;display:flex;align-items:center;gap:12px}
+.concept-header .ch-icon{font-size:22px}
+.concept-header .ch-title{font-family:var(--head);font-size:17px;font-weight:700;color:var(--teal-mid)}
+.concept-header .ch-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.concept-body{padding:18px 22px;font-size:14px;line-height:1.85;color:var(--text)}
+.concept-body p{font-size:14px;margin-bottom:10px}
+.concept-body p:last-child{margin:0}
+.concept-body strong{color:var(--white)}
+
+/* ANALOGY BOX */
+.analogy{background:linear-gradient(135deg,rgba(139,92,246,0.07),rgba(139,92,246,0.03));border:1px solid rgba(139,92,246,0.35);border-radius:8px;padding:16px 20px;margin:14px 0;font-size:13.5px;color:#C4B5FD;line-height:1.7}
+.analogy .an-label{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--purple);text-transform:uppercase;margin-bottom:7px;font-weight:700}
+
+/* CALLOUTS */
+.box{border-radius:8px;padding:15px 20px;margin:14px 0;font-size:13.5px;line-height:1.7}
+.box .bx-label{font-family:var(--mono);font-size:9.5px;letter-spacing:2px;text-transform:uppercase;margin-bottom:7px;font-weight:700;display:flex;align-items:center;gap:7px}
+.box.info{background:#EFF6FF;border:1px solid #BFDBFE;color:#1E3A5F}
+.box.info .bx-label{color:#1D4ED8}
+.box.tip{background:rgba(42,155,165,0.07);border:1px solid rgba(42,155,165,0.35);color:var(--text)}
+.box.tip .bx-label{color:var(--teal-mid)}
+.box.warn{background:#FEF9C3;border:1px solid #FDE68A;color:#78350F}
+.box.warn .bx-label{color:#92400E}
+.box.danger{background:#FEF2F2;border:1px solid #FECACA;color:#7F1D1D}
+.box.danger .bx-label{color:#991B1B}
+.box.success{background:#F0FDF4;border:1px solid #BBF7D0;color:#14532D}
+.box.success .bx-label{color:#15803D}
+.box.purple{background:rgba(139,92,246,0.07);border:1px solid rgba(139,92,246,0.35);color:#C4B5FD}
+.box.purple .bx-label{color:#A78BFA}
+.box p{margin:0 0 6px;font-size:13.5px;line-height:1.65}
+.box p:last-child{margin:0}
+
+/* WHAT YOU ARE LOOKING FOR — pre-command goal box */
+.goal-box{background:linear-gradient(135deg,rgba(234,179,8,0.07),rgba(234,179,8,0.03));border:1px solid rgba(234,179,8,0.4);border-radius:8px;padding:16px 20px;margin:16px 0}
+.goal-box .gb-label{font-family:var(--mono);font-size:9px;letter-spacing:2.5px;color:var(--yellow);text-transform:uppercase;margin-bottom:10px;font-weight:700;display:flex;align-items:center;gap:8px}
+.goal-box .gb-label::before{content:'🎯'}
+.goal-box ul{list-style:none;padding:0}
+.goal-box ul li{font-size:13.5px;color:#FEF9C3;padding:5px 0 5px 20px;position:relative;line-height:1.6;border-bottom:1px solid rgba(234,179,8,0.12)}
+.goal-box ul li:last-child{border:none}
+.goal-box ul li::before{content:'→';position:absolute;left:0;color:var(--yellow)}
+
+/* COMMAND BLOCK */
+.cmd-wrap{margin:18px 0;border:1px solid rgba(42,155,165,0.25);border-radius:8px;overflow:hidden}
+.cmd-header{background:rgba(42,155,165,0.08);border-bottom:1px solid rgba(42,155,165,0.18);padding:10px 18px;display:flex;align-items:center;gap:10px}
+.cmd-header .ch-pill{background:var(--teal);color:var(--white);font-family:var(--head);font-size:12px;font-weight:700;padding:3px 12px;border-radius:12px;flex-shrink:0}
+.cmd-header .ch-desc{font-size:13px;color:var(--text);font-weight:500}
+.cmd-inner{padding:14px 18px;background:rgba(255,255,255,0.01)}
+
+/* CODE */
+.code-block{background:#0D1117;border:1px solid rgba(6,182,212,0.18);border-left:3px solid var(--cyan);border-radius:6px;overflow:hidden;margin:10px 0}
+.code-block.output-block{border-left-color:rgba(255,255,255,0.12)}
+.code-block.error-block{border-left-color:var(--red)}
+.code-block .cb-top{background:rgba(6,182,212,0.05);border-bottom:1px solid rgba(6,182,212,0.1);padding:5px 14px;display:flex;justify-content:space-between;align-items:center}
+.code-block.output-block .cb-top{background:rgba(255,255,255,0.02);border-bottom-color:rgba(255,255,255,0.06)}
+.code-block.error-block .cb-top{background:rgba(239,68,68,0.07);border-bottom-color:rgba(239,68,68,0.2)}
+.cb-top .lbl{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:rgba(148,163,184,0.6);text-transform:uppercase}
+.cb-top .tag{font-family:var(--mono);font-size:9px;letter-spacing:1px;padding:1px 8px;border-radius:3px}
+.tag.linux{color:var(--orange);background:rgba(224,123,57,0.1)}
+.tag.out{color:rgba(148,163,184,0.5);background:rgba(255,255,255,0.04)}
+.tag.err{color:var(--red);background:rgba(239,68,68,0.1)}
+pre{font-family:var(--mono);font-size:12.5px;color:#00FF88;line-height:1.8;padding:14px 16px;overflow-x:auto;white-space:pre}
+.code-block.output-block pre{color:#AAAAAA}
+.code-block.error-block pre{color:#FCA5A5}
+.hl{color:#00FF88!important;font-weight:700}
+.hl-o{color:#FCA668!important;font-weight:700}
+
+/* LOOK FOR */
+.look-for{background:rgba(42,155,165,0.06);border:1px solid rgba(42,155,165,0.28);border-radius:7px;padding:14px 18px;margin:12px 0}
+.look-for .lf-head{font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--teal-mid);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:7px}
+.look-for .lf-head::before{content:'👁'}
+.look-for ul{list-style:none;padding:0}
+.look-for ul li{font-size:13.5px;color:var(--text);padding:5px 0 5px 20px;position:relative;line-height:1.6;border-bottom:1px solid rgba(255,255,255,0.04)}
+.look-for ul li:last-child{border:none}
+.look-for ul li::before{content:'→';position:absolute;left:0;color:var(--teal-mid)}
+
+/* DOWNLOAD */
+.dl-card{background:var(--card);border:1px solid rgba(42,155,165,0.4);border-radius:8px;padding:20px 22px;margin:16px 0;display:flex;align-items:center;gap:18px}
+.dl-icon{font-size:30px;flex-shrink:0}
+.dl-info{flex:1}
+.dl-name{font-family:var(--head);font-size:18px;font-weight:700;color:var(--white);margin-bottom:3px}
+.dl-detail{font-size:12.5px;color:var(--muted);margin-bottom:5px}
+.dl-url{font-family:var(--mono);font-size:10px;color:var(--cyan);word-break:break-all}
+.dl-btn{background:var(--teal);color:var(--white);font-family:var(--head);font-size:15px;font-weight:700;padding:10px 22px;border-radius:6px;text-decoration:none;flex-shrink:0;transition:background .2s;letter-spacing:.5px}
+.dl-btn:hover{background:var(--teal-mid)}
+
+/* SETUP STEP */
+.setup-step{margin:16px 0;border:1px solid rgba(42,155,165,0.2);border-radius:8px;overflow:hidden}
+.setup-step-head{background:rgba(42,155,165,0.08);border-bottom:1px solid rgba(42,155,165,0.15);padding:10px 18px;display:flex;align-items:center;gap:10px}
+.sn{background:var(--teal);color:var(--white);font-family:var(--head);font-size:13px;font-weight:700;padding:2px 10px;border-radius:12px;flex-shrink:0}
+.sn.warn-n{background:var(--red)}
+.st-desc{font-size:13.5px;font-weight:500;color:var(--text)}
+.setup-step-body{padding:14px 18px;background:rgba(255,255,255,0.01)}
+
+/* ROADMAP */
+.roadmap{border-left:2px solid rgba(42,155,165,0.3);margin:18px 0 28px;padding-left:0}
+.rm-item{display:flex;gap:16px;padding:10px 0 10px 24px;position:relative}
+.rm-item::before{content:'';position:absolute;left:-7px;top:17px;width:12px;height:12px;background:var(--teal-mid);border-radius:50%;border:2px solid var(--dark)}
+.rm-item.rm-flag::before{background:var(--green)}
+.rm-step{font-family:var(--mono);font-size:9px;letter-spacing:1.5px;color:var(--teal-mid);min-width:54px;text-transform:uppercase;margin-top:2px;flex-shrink:0}
+.rm-item.rm-flag .rm-step{color:var(--green)}
+.rm-title{font-family:var(--head);font-size:15px;font-weight:600;color:var(--white);margin-bottom:2px}
+.rm-desc{font-size:12.5px;color:var(--muted)}
+
+/* FLAG BOX */
+.flag-box{background:linear-gradient(135deg,rgba(34,197,94,0.07),rgba(34,197,94,0.03));border:1px solid rgba(34,197,94,0.45);border-left:5px solid var(--green);border-radius:8px;padding:24px 28px;margin:24px 0;position:relative;overflow:hidden}
+.flag-box::after{content:'⚑';position:absolute;right:22px;top:14px;font-size:36px;color:rgba(34,197,94,0.1);pointer-events:none}
+.fb-label{font-family:var(--mono);font-size:9.5px;letter-spacing:3px;color:var(--green);text-transform:uppercase;margin-bottom:10px}
+.fb-val{font-family:var(--mono);font-size:18px;color:var(--green);margin-bottom:14px;word-break:break-all}
+.fb-why{font-size:13px;color:#86EFAC;line-height:1.7;border-top:1px solid rgba(34,197,94,0.18);padding-top:12px}
+
+/* QUIZ */
+.quiz-progress{display:flex;gap:7px;margin-bottom:22px;align-items:center}
+.qp-lbl{font-family:var(--mono);font-size:9px;letter-spacing:1.5px;color:var(--muted);margin-right:4px;text-transform:uppercase}
+.qp-dot{width:11px;height:11px;border-radius:50%;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);transition:all .3s}
+.qp-dot.c{background:var(--green);border-color:var(--green)}
+.qp-dot.w{background:var(--red);border-color:var(--red)}
+.qcard{background:var(--card);border:1px solid rgba(42,155,165,0.22);border-radius:10px;margin:14px 0;overflow:hidden;transition:border-color .25s}
+.qcard.ac{border-color:rgba(34,197,94,0.5)}
+.qcard.aw{border-color:rgba(239,68,68,0.4)}
+.qcard-head{padding:16px 20px 12px;border-bottom:1px solid rgba(255,255,255,0.06)}
+.q-tag{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--teal-mid);text-transform:uppercase;margin-bottom:8px}
+.q-text{font-size:14.5px;font-weight:500;color:var(--white);line-height:1.55}
+.q-opts{padding:12px 20px 16px;display:flex;flex-direction:column;gap:9px}
+.q-opt{display:flex;align-items:flex-start;gap:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:7px;padding:11px 14px;cursor:pointer;transition:all .18s;text-align:left;width:100%;font-family:var(--body)}
+.q-opt:hover:not(:disabled){background:rgba(42,155,165,0.1);border-color:rgba(42,155,165,0.45)}
+.q-opt:disabled{cursor:default}
+.opt-let{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--muted);background:rgba(255,255,255,0.06);border-radius:4px;min-width:26px;height:26px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .18s}
+.opt-txt{font-size:13.5px;color:var(--text);line-height:1.5}
+.q-opt.correct{background:rgba(34,197,94,0.08);border-color:rgba(34,197,94,0.5)}
+.q-opt.correct .opt-let{background:var(--green);color:#052E16}
+.q-opt.correct .opt-txt{color:#86EFAC}
+.q-opt.wrong{background:rgba(239,68,68,0.07);border-color:rgba(239,68,68,0.4)}
+.q-opt.wrong .opt-let{background:var(--red);color:var(--white)}
+.q-opt.wrong .opt-txt{color:#FCA5A5;text-decoration:line-through}
+.q-opt.dimmed{opacity:.32}
+.q-fb{display:none;margin:0 20px 16px;border-radius:7px;padding:12px 16px;font-size:13.5px;line-height:1.65;animation:fadeUp .3s ease}
+.q-fb.show{display:block}
+.fb-badge{font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;font-weight:700}
+.q-fb.cfb{background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.3);color:#86EFAC}
+.q-fb.cfb .fb-badge{color:var(--green)}
+.q-fb.wfb{background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.3);color:#FCA5A5}
+.q-fb.wfb .fb-badge{color:var(--red)}
+.scoreboard{display:none;background:var(--panel);border:1px solid rgba(42,155,165,0.4);border-radius:10px;padding:32px;margin:24px 0;text-align:center;animation:fadeUp .4s ease}
+.scoreboard.show{display:block}
+.sb-title{font-family:var(--head);font-size:18px;font-weight:700;color:var(--cyan);letter-spacing:2px;text-transform:uppercase;margin-bottom:14px}
+.sb-score{font-family:var(--head);font-size:60px;font-weight:700;line-height:1;margin-bottom:6px}
+.sb-of{font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:18px}
+.sb-msg{font-size:14.5px;color:var(--text);margin-bottom:24px;font-style:italic}
+.sb-btn{background:var(--teal);color:var(--white);font-family:var(--head);font-size:15px;font-weight:700;padding:10px 28px;border-radius:6px;border:none;cursor:pointer;transition:background .2s}
+.sb-btn:hover{background:var(--teal-mid)}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* FOOTER */
+footer{background:var(--panel);border-top:2px solid var(--teal);margin-left:230px;padding:22px 46px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.f-left .f-course{font-family:var(--mono);font-size:11px;letter-spacing:2px;color:var(--cyan);text-transform:uppercase}
+.f-left .f-mod{font-family:var(--head);font-size:19px;font-weight:700;color:var(--teal-mid)}
+.f-right{text-align:right}
+.f-right .f-name{font-family:var(--head);font-size:19px;font-weight:700;color:var(--white)}
+.f-right .f-sub{font-family:var(--mono);font-size:9.5px;color:var(--muted);letter-spacing:1px;margin-top:3px}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:var(--panel)}
+::-webkit-scrollbar-thumb{background:var(--teal);border-radius:3px}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sb-logo">
+    <span class="sb-week">// Week 4 Workshop</span>
+    <span class="sb-title">Memory Forensics — Beginner Lab</span>
+  </div>
+
+  <div class="nav-group">Before You Start</div>
+  <a href="#understand">Understanding RAM &amp; Memory Dumps</a>
+  <a href="#scenario">The Case Briefing</a>
+  <a href="#what-look-for">What Are We Looking For?</a>
+  <a href="#download">Download the Evidence</a>
+
+  <div class="nav-group">Setup on Kali 2025</div>
+  <a href="#why-python2">Why Python 2.7?</a>
+  <a href="#setup-headers">Step S1 — Dev Headers</a>
+  <a href="#setup-distorm">Step S2 — distorm3</a>
+  <a href="#setup-clone">Step S3 — Clone Volatility</a>
+  <a href="#setup-crypto">Step S4 — Fix Crypto Errors</a>
+  <a href="#setup-verify">Step S5 — Verify &amp; Common Errors</a>
+
+  <div class="nav-group">The Investigation</div>
+  <a href="#step1">Step 1 — Identify the OS</a>
+  <a href="#step2">Step 2 — List Running Programs</a>
+  <a href="#step3">Step 3 — Read the Terminal History</a>
+  <a class="flag-a" href="#flag1">⚑ Flag 1 Found</a>
+  <a href="#step4">Step 4 — Find the Hidden File</a>
+  <a href="#step5">Step 5 — Get the Password</a>
+  <a class="flag-a" href="#flag2">⚑ Flag 2 Found</a>
+
+  <div class="nav-group">Finish Up</div>
+  <a href="#recap">What Did We Learn?</a>
+  <a href="#quiz">Knowledge Check</a>
+</nav>
+
+<!-- MAIN -->
+<main class="main">
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-badge">Week 4 · Practical Lab</div>
+  <h1>Memory Forensics<br><em>Your First Investigation</em></h1>
+  <p class="tagline">Before you run a single command, you will understand exactly what RAM is, why it matters as evidence, what we are looking for — and why. Then we investigate together.</p>
+  <div class="chips">
+    <div class="chip">Difficulty: <b>Complete beginner</b></div>
+    <div class="chip">Tool: <b>Volatility 2 on Kali Linux</b></div>
+    <div class="chip">Flags to find: <b>2</b></div>
+    <div class="chip">Prior experience needed: <b>None</b></div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════
+     SECTION: UNDERSTANDING
+═══════════════════════════════════ -->
+<div class="divider" id="understand">🧠 WHAT IS MEMORY FORENSICS? — READ FIRST</div>
+
+<p>This section exists because many students jump straight to the commands and never understand what they are doing. If you skip this part, the investigation will feel like following a recipe without knowing what you are cooking. Take five minutes to read it.</p>
+
+<h2 class="sec">What is RAM?</h2>
+
+<p>Your computer has two types of storage. Your <strong>hard drive</strong> (or SSD) is long-term storage — it holds everything even when the computer is switched off: your files, your installed programs, your photos. RAM (<strong>Random Access Memory</strong>) is completely different. It is your computer's short-term working memory — fast, temporary, and wiped completely when power is lost.</p>
+
+<div class="analogy">
+  <div class="an-label">// Analogy — think of it this way</div>
+  Imagine a chef working in a kitchen. The fridge and cupboards are the hard drive — food stored long-term. The <strong>countertop</strong> is RAM — only the things the chef is actively using right now are on it. The moment the chef finishes their shift, the countertop is cleared. RAM works exactly like that.
+</div>
+
+<p>When you open a web browser, the browser loads from your hard drive <em>into</em> RAM to run. When you type a password into a website, that password exists in RAM while you are typing it. When you open a Word document, the entire document lives in RAM while it is open. When you run commands in a terminal window, those commands and their output live in RAM.</p>
+
+<p><strong>Turn the computer off — and all of that is gone forever.</strong></p>
+
+<h2 class="sec">What is a Memory Dump?</h2>
+
+<p>A memory dump (also called a RAM dump or memory image) is a <strong>snapshot photograph of everything in RAM</strong> taken at a specific instant in time. Special forensic tools can capture this snapshot while the computer is still running, freezing every piece of active data into a single large file.</p>
+
+<div class="box info">
+  <div class="bx-label">ℹ️ In this lab</div>
+  <p>The file you will download — <code>MemoryDump_Lab1.raw</code> — is exactly this. It is a frozen snapshot of a Windows 7 computer's RAM captured at a specific moment in 2019. Everything that computer was doing at that moment is locked inside this file, waiting for us to read it.</p>
+</div>
+
+<h2 class="sec">Why Does RAM Matter as Evidence?</h2>
+
+<p>RAM contains things that the hard drive often does not. Consider these examples:</p>
+
+<div class="concept">
+  <div class="concept-header"><div class="ch-icon">💬</div><div><div class="ch-title">Commands typed in a terminal</div><div class="ch-sub">Even if the window was closed, the history stays in RAM until the computer restarts</div></div></div>
+  <div class="concept-body"><p>When someone opens a command prompt (the black window) and types instructions, Windows stores those commands and their output in a memory buffer. If the window is closed, the <em>window</em> disappears — but the <em>memory buffer</em> does not. It stays in RAM. A forensic investigator can read it from a memory dump.</p></div>
+</div>
+
+<div class="concept">
+  <div class="concept-header"><div class="ch-icon">🔑</div><div><div class="ch-title">Passwords and encryption keys</div><div class="ch-sub">Once a user logs in, Windows keeps their password hash in RAM permanently until shutdown</div></div></div>
+  <div class="concept-body"><p>Windows does not store your actual password — it stores a scrambled version called a <strong>hash</strong>. But to let you access network resources and files without re-typing your password constantly, Windows caches this hash in RAM at all times. A forensic investigator can extract these hashes from a dump — and sometimes use them directly to access protected files.</p></div>
+</div>
+
+<div class="concept">
+  <div class="concept-header"><div class="ch-icon">📂</div><div><div class="ch-title">Open files and their contents</div><div class="ch-sub">Files open in RAM even if the application was closed before saving</div></div></div>
+  <div class="concept-body"><p>When you open a file — a Word document, an image, an archive — its contents are loaded into RAM. If the computer crashed before you saved, the file might still be recoverable from the dump. This is why memory forensics can recover evidence that was never written to the hard drive at all.</p></div>
+</div>
+
+<h2 class="sec">What is Volatility?</h2>
+
+<p>Volatility is a <strong>free, open-source tool</strong> that analyses memory dump files. It knows exactly how Windows organises data inside RAM — where the process list is, where network connections are recorded, where terminal histories are stored — and it can extract any of that information on demand.</p>
+
+<div class="analogy">
+  <div class="an-label">// Analogy</div>
+  A memory dump without Volatility is like having a massive library where every book has had its spine removed and all the pages mixed together. Volatility is the librarian who knows exactly where every section is and can retrieve any book in seconds.
+</div>
+
+<p>Volatility uses <strong>plugins</strong> — each plugin is designed to extract one specific type of data. You will use four plugins in this lab:</p>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0 22px">
+  <div style="background:var(--card);border:1px solid rgba(42,155,165,0.2);border-radius:7px;padding:14px 16px">
+    <div style="font-family:var(--mono);font-size:13px;color:var(--cyan);margin-bottom:6px">imageinfo</div>
+    <div style="font-size:13px;color:var(--muted)">Identifies which version of Windows this dump came from</div>
+  </div>
+  <div style="background:var(--card);border:1px solid rgba(42,155,165,0.2);border-radius:7px;padding:14px 16px">
+    <div style="font-family:var(--mono);font-size:13px;color:var(--cyan);margin-bottom:6px">pslist</div>
+    <div style="font-size:13px;color:var(--muted)">Lists every program that was running at the time of capture</div>
+  </div>
+  <div style="background:var(--card);border:1px solid rgba(42,155,165,0.2);border-radius:7px;padding:14px 16px">
+    <div style="font-family:var(--mono);font-size:13px;color:var(--cyan);margin-bottom:6px">consoles</div>
+    <div style="font-size:13px;color:var(--muted)">Reads the terminal window history — what was typed and what appeared on screen</div>
+  </div>
+  <div style="background:var(--card);border:1px solid rgba(42,155,165,0.2);border-radius:7px;padding:14px 16px">
+    <div style="font-family:var(--mono);font-size:13px;color:var(--cyan);margin-bottom:6px">hashdump</div>
+    <div style="font-size:13px;color:var(--muted)">Extracts cached Windows password hashes from kernel memory</div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════
+     SCENARIO
+═══════════════════════════════════ -->
+<div class="divider orange-d" id="scenario">📁 THE CASE — READ BEFORE ANYTHING ELSE</div>
+
+<p>Every real forensic investigation starts with a briefing. Read this carefully. The details in a briefing are clues — they tell you where to look.</p>
+
+<div class="scenario-card">
+  <div class="sc-ref">// Case Reference: MemLab-01 · Memory Image Acquired: 2019-12-11</div>
+  <div class="sc-body">
+    <p>A computer belonging to a user named <strong>Alissa Simpson</strong> crashed unexpectedly. Before it crashed, a witness reported seeing a <strong>black terminal window briefly appear</strong> on screen. The witness could not read what was in it before it disappeared.</p>
+    <p style="margin-top:10px">At the time of the crash, Alissa appeared to be <strong>using WinRAR</strong> — a program that opens compressed archive files — along with other applications.</p>
+    <p style="margin-top:10px">A memory dump was captured from the machine immediately before it was turned off. Your task is to analyse this dump and recover any hidden evidence.</p>
+  </div>
+</div>
+
+<div class="box tip">
+  <div class="bx-label">💡 Reading the clues in the briefing</div>
+  <p><strong>Black terminal window</strong> → Someone ran a command in cmd.exe. Even if they closed the window, the command history lives in RAM. The <code>consoles</code> plugin will read it.</p>
+  <p><strong>WinRAR was open</strong> → An archive file was being opened. Which file? Volatility can tell us. Is it password-protected? Volatility can help with that too.</p>
+</div>
+
+
+<!-- ═══════════════════════════════════
+     WHAT ARE WE LOOKING FOR?
+═══════════════════════════════════ -->
+<div class="divider purple-d" id="what-look-for">🎯 WHAT ARE WE LOOKING FOR — AND WHY?</div>
+
+<p>This is the question most labs never answer. Before you type a single command, you should know <em>what</em> you are looking for and <em>why that thing matters</em>.</p>
+
+<h2 class="sec">Flag 1 — A Secret Hidden in the Terminal</h2>
+
+<p>The briefing tells us a terminal window appeared briefly. Terminals are used to run commands. Commands produce output. That output was displayed on screen — and it is still in RAM.</p>
+
+<p>We are looking for something unusual in the terminal output. In this lab, whoever used the terminal printed a hidden message — encoded in <strong>Base64</strong> to disguise it. Base64 is a way of writing text that makes it look like random characters. The string <code>ZmxhZ3t0aDFz...</code> is not random — it is a real message in disguise. Once we find it, we decode it with one command to reveal Flag 1.</p>
+
+<div class="box purple">
+  <div class="bx-label">🔍 What is Base64?</div>
+  <p>Base64 converts any text into a string of letters, numbers, and symbols. It is reversible — not encrypted — meaning anyone can decode it instantly. You will recognise Base64 strings because they often end with one or two <code>=</code> signs and look like meaningless characters. Example: <code>ZmxhZw==</code> decodes to <code>flag</code>.</p>
+</div>
+
+<h2 class="sec">Flag 2 — Inside a Password-Protected Archive</h2>
+
+<p>WinRAR was open with an archive file. That archive is password-protected — but we do not need to guess the password. Windows had already authenticated Alissa Simpson when she logged in, and it cached her password hash in RAM at that moment. We can extract her hash and use it to unlock the archive.</p>
+
+<p>Inside the archive is a file containing Flag 2.</p>
+
+<div class="roadmap" style="margin-top:24px">
+  <div class="rm-item"><div class="rm-step">Step 1</div><div><div class="rm-title">Identify the OS — <em>imageinfo</em></div><div class="rm-desc">Establish which Windows version this dump came from before any other command</div></div></div>
+  <div class="rm-item"><div class="rm-step">Step 2</div><div><div class="rm-title">List running programs — <em>pslist</em></div><div class="rm-desc">Confirm what was open: cmd.exe, WinRAR, and other processes</div></div></div>
+  <div class="rm-item rm-flag"><div class="rm-step">Step 3</div><div><div class="rm-title">Read the terminal — <em>consoles</em></div><div class="rm-desc">Extract command history from the terminal window → decode Base64 → <strong>Flag 1</strong></div></div></div>
+  <div class="rm-item"><div class="rm-step">Step 4</div><div><div class="rm-title">Find the archive — <em>cmdline + filescan + dumpfiles</em></div><div class="rm-desc">Identify which file WinRAR had open and extract it from memory</div></div></div>
+  <div class="rm-item rm-flag"><div class="rm-step">Step 5</div><div><div class="rm-title">Get the password — <em>hashdump</em></div><div class="rm-desc">Extract Alissa's password hash → use it to open the archive → <strong>Flag 2</strong></div></div></div>
+</div>
+
+
+<!-- ═══════════════════════════════════
+     DOWNLOAD
+═══════════════════════════════════ -->
+<div class="divider" id="download">💾 DOWNLOAD THE EVIDENCE FILE</div>
+
+<p>Download this file before the session. It is approximately 760 MB. Save it directly to your <strong>Desktop</strong> so the commands in this guide work exactly as written.</p>
+
+<div class="dl-card">
+  <div class="dl-icon">💾</div>
+  <div class="dl-info">
+    <div class="dl-name">MemoryDump_Lab1.raw</div>
+    <div class="dl-detail">MemLabs Lab 1 · Windows 7 SP1 x64 · ~760 MB · Created by @_abhiramkumar</div>
+    <div class="dl-url">https://mega.nz/#!6l4BhKIb!l8ATZoliB_ULlvlkESwkPiXAETJEF7b91Gf9CWuQI70</div>
+  </div>
+  <a class="dl-btn" href="https://mega.nz/#!6l4BhKIb!l8ATZoliB_ULlvlkESwkPiXAETJEF7b91Gf9CWuQI70" target="_blank">DOWNLOAD</a>
+</div>
+
+<div class="box warn">
+  <div class="bx-label">⚠️ Save to the Desktop</div>
+  <p>Every command in this guide uses the path <code>~/Desktop/MemoryDump_Lab1.raw</code>. If you save it elsewhere, every command will fail with a "file not found" error. Save it to the Desktop now to avoid confusion later.</p>
+</div>
+
+
+<!-- ═══════════════════════════════════
+     SETUP — KALI 2025
+═══════════════════════════════════ -->
+<div class="divider red-d" id="why-python2">⚙️ SETUP — KALI LINUX 2025</div>
+
+<h2 class="sec">Before You Start: Why Does Setup Take Several Steps?</h2>
+
+<p>Volatility 2 was written for Python 2.7 — a version of Python that reached end-of-life in 2020. Modern Kali Linux (2025) still has Python 2.7 installed, but it does not include the <strong>development files</strong> that are needed to install Python 2 extensions from source code. This means a clean Kali 2025 install will produce multiple errors when you try to set up Volatility.</p>
+
+<p>The setup steps below fix these errors in the correct order. <strong>The order matters</strong> — doing them out of sequence will cause the errors to reappear.</p>
+
+<div class="box tip">
+  <div class="bx-label">💡 Opening a terminal in Kali</div>
+  <p>Right-click on the desktop and select <strong>Open Terminal</strong>, or find the terminal icon in the taskbar. The terminal is a text interface — you type a command and press Enter to run it. If you make a mistake, nothing permanent happens — you can just type again.</p>
+</div>
+
+<!-- S1 -->
+<div class="setup-step" id="setup-headers">
+  <div class="setup-step-head">
+    <div class="sn">Step S1</div>
+    <div class="st-desc">Install Python 2.7 development headers</div>
+  </div>
+  <div class="setup-step-body">
+    <div class="concept">
+      <div class="concept-header"><div class="ch-icon">🤔</div><div><div class="ch-title">Why do we need this?</div></div></div>
+      <div class="concept-body"><p>Python 2.7 is installed on Kali, but the <strong>C development header files</strong> — technical files needed to compile Python extensions from source code — are not. Without them, any library that needs to be compiled (like <code>distorm3</code>) will fail with a cryptic error about a missing file called <code>Python.h</code>. This step installs those missing files.</p></div>
+    </div>
+    <div class="code-block">
+      <div class="cb-top"><div class="lbl">Kali Terminal — type this first</div><div class="tag linux">LINUX</div></div>
+      <pre>sudo apt install python2.7-dev python2-dev -y</pre>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin-top:6px">Type your Kali password when asked. You will not see the characters as you type — this is normal Linux behaviour.</p>
+    <div class="look-for">
+      <div class="lf-head">Expected result</div>
+      <ul>
+        <li>You should see <strong>Setting up python2.7-dev</strong> and <strong>Setting up python2-dev</strong> near the end</li>
+        <li>No error messages — just installation progress</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- S2 -->
+<div class="setup-step" id="setup-distorm">
+  <div class="setup-step-head">
+    <div class="sn">Step S2</div>
+    <div class="st-desc">Install distorm3 — a library Volatility needs</div>
+  </div>
+  <div class="setup-step-body">
+    <div class="concept">
+      <div class="concept-header"><div class="ch-icon">🤔</div><div><div class="ch-title">Why do we need this?</div></div></div>
+      <div class="concept-body"><p>distorm3 is a disassembly library — it helps Volatility analyse machine code found in memory. We install it now while the development headers from Step S1 are in place. Without Step S1 first, this would fail with the error shown below.</p></div>
+    </div>
+
+    <div class="box danger">
+      <div class="bx-label">🚫 Error you would see WITHOUT Step S1</div>
+      <p>If you try this before installing dev headers, you will see:</p>
+      <div class="code-block error-block" style="margin-top:8px">
+        <div class="cb-top"><div class="lbl">Error output</div><div class="tag err">ERROR</div></div>
+        <pre>python/python_module_init.c:2:10: fatal error: Python.h: No such file or directory
+compilation terminated.
+error: command 'x86_64-linux-gnu-gcc' failed with exit status 1
+ERROR: Failed building wheel for distorm3</pre>
+      </div>
+      <p style="margin-top:8px">This is exactly why Step S1 must come first.</p>
+    </div>
+
+    <div class="code-block">
+      <div class="cb-top"><div class="lbl">Kali Terminal</div><div class="tag linux">LINUX</div></div>
+      <pre>python2.7 -m pip install --user distorm3==3.4.4</pre>
+    </div>
+    <div class="look-for">
+      <div class="lf-head">Expected result — build succeeds this time</div>
+      <ul>
+        <li>You will see a deprecation warning about Python 2.7 — <strong>ignore it</strong>, this is expected</li>
+        <li>You should see <strong>Building wheel for distorm3 ... done</strong></li>
+        <li>Final line: <strong>Successfully installed distorm3-3.4.4</strong></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- S3 -->
+<div class="setup-step" id="setup-clone">
+  <div class="setup-step-head">
+    <div class="sn">Step S3</div>
+    <div class="st-desc">Download Volatility 2 from GitHub</div>
+  </div>
+  <div class="setup-step-body">
+    <div class="concept">
+      <div class="concept-header"><div class="ch-icon">🤔</div><div><div class="ch-title">Why git clone and not apt install?</div></div></div>
+      <div class="concept-body"><p>Kali's package manager (<code>apt</code>) does have a Volatility package, but it is an older version that may behave differently to the guide. Cloning from GitHub gives you the exact version used in this lab. On Linux, Volatility runs as a Python script — you call it with <code>python2.7 vol.py</code> rather than as a standalone program.</p></div>
+    </div>
+    <div class="code-block">
+      <div class="cb-top"><div class="lbl">Kali Terminal — three commands in sequence</div><div class="tag linux">LINUX</div></div>
+      <pre>cd ~
+git clone https://github.com/volatilityfoundation/volatility.git
+cd volatility</pre>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin-top:8px"><code>cd ~</code> goes to your home folder. <code>git clone</code> downloads Volatility. <code>cd volatility</code> enters that folder. <strong>Every command for the rest of this lab must be run from inside this folder.</strong></p>
+    <div class="look-for">
+      <div class="lf-head">Check it worked</div>
+      <ul>
+        <li>Run <code>ls</code> and you should see a file called <strong>vol.py</strong> — that is the main Volatility program</li>
+        <li>Your terminal prompt should now show <strong>(kali㉿kali)-[~/volatility]</strong></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- S4 -->
+<div class="setup-step" id="setup-crypto">
+  <div class="setup-step-head">
+    <div class="sn">Step S4</div>
+    <div class="st-desc">Install pycryptodome — fixes a wall of error messages</div>
+  </div>
+  <div class="setup-step-body">
+    <div class="concept">
+      <div class="concept-header"><div class="ch-icon">🤔</div><div><div class="ch-title">Why do we need this?</div></div></div>
+      <div class="concept-body"><p>Many Volatility plugins use cryptography functions — things like reading registry keys and decoding password hashes. These functions require a Python library called <code>Crypto</code>. Without it, Volatility still runs, but many plugins — including <code>hashdump</code> which we need for Flag 2 — will silently fail to load.</p></div>
+    </div>
+
+    <div class="box danger">
+      <div class="bx-label">🚫 Error wall you would see WITHOUT this step</div>
+      <p>If you skip this, running any Volatility command shows:</p>
+      <div class="code-block error-block" style="margin-top:8px">
+        <div class="cb-top"><div class="lbl">Error output — repeats many times</div><div class="tag err">ERROR</div></div>
+        <pre>*** Failed to import volatility.plugins.envars (ImportError: No module named Crypto.Hash)
+*** Failed to import volatility.plugins.registry.shutdown (ImportError: No module named Crypto.Hash)
+*** Failed to import volatility.plugins.timeliner (ImportError: No module named Crypto.Hash)
+*** Failed to import volatility.plugins.malware.servicediff (ImportError: No module named Crypto.Hash)
+*** Failed to import volatility.plugins.getsids (ImportError: No module named Crypto.Hash)
+... (many more lines)</pre>
+      </div>
+      <p style="margin-top:8px">Volatility still partially works with these errors, but <strong>hashdump will not load</strong>. Run this step to eliminate all these warnings.</p>
+    </div>
+
+    <div class="code-block">
+      <div class="cb-top"><div class="lbl">Kali Terminal — from inside ~/volatility/</div><div class="tag linux">LINUX</div></div>
+      <pre>python2.7 -m pip install --user pycryptodome</pre>
+    </div>
+    <div class="look-for">
+      <div class="lf-head">Expected result</div>
+      <ul>
+        <li><strong>Successfully installed pycryptodome-3.x.x</strong></li>
+        <li>After this, all those <code>No module named Crypto.Hash</code> errors will be gone</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- S5 -->
+<div class="setup-step" id="setup-verify">
+  <div class="setup-step-head">
+    <div class="sn">Step S5</div>
+    <div class="st-desc">Verify everything works — and understand common errors</div>
+  </div>
+  <div class="setup-step-body">
+    <p>Create the output folder (Volatility cannot create it itself) and run a test command:</p>
+    <div class="code-block">
+      <div class="cb-top"><div class="lbl">Kali Terminal</div><div class="tag linux">LINUX</div></div>
+      <pre>mkdir -p ~/Desktop/output
+python2.7 vol.py -f ~/Desktop/MemoryDump_Lab1.raw imageinfo</pre>
+    </div>
+    <div class="code-block output-block" style="margin-top:8px">
+      <div class="cb-top"><div class="lbl">Expected clean output — no errors</div><div class="tag out">OUTPUT</div></div>
+      <pre>Volatility Foundation Volatility Framework 2.6.1
+INFO    : volatility.debug    : Determining profile based on KDBG search...
+<span class="hl">          Suggested Profile(s) : Win7SP1x64, Win7SP0x64, Win2008R2SP0x64</span>
+                     AS Layer1 : WindowsAMD64PagedMemory (Kernel AS)
+                     AS Layer2 : FileAddressSpace (.../MemoryDump_Lab1.raw)
+           Image date and time : 2019-12-11 14:38:00 UTC+0000</pre>
+    </div>
+
+    <h3 class="sub">⚠ Common Mistakes at This Stage</h3>
+
+    <div class="box danger" style="margin-top:12px">
+      <div class="bx-label">🚫 Mistake 1 — Typing just "volatility" instead of "python2.7 vol.py"</div>
+      <div class="code-block error-block" style="margin-top:8px;margin-bottom:8px">
+        <div class="cb-top"><div class="lbl">What you typed (WRONG)</div><div class="tag err">WRONG</div></div>
+        <pre>┌──(kali㉿kali)-[~/volatility]
+└─$ volatility -f MemoryDump_Lab1.raw imageinfo
+volatility: command not found</pre>
+      </div>
+      <p><strong>Why:</strong> Volatility 2 is a Python script, not a system command. You must always prefix it with <code>python2.7 vol.py</code>. Typing just <code>volatility</code> only works if it was installed via apt — and we deliberately did not do that.</p>
+      <p style="margin-top:6px"><strong>Fix:</strong> Always use: <code>python2.7 vol.py -f [dump] [plugin]</code></p>
+    </div>
+
+    <div class="box danger">
+      <div class="bx-label">🚫 Mistake 2 — Running dumpfiles without creating the output folder first</div>
+      <div class="code-block error-block" style="margin-top:8px;margin-bottom:8px">
+        <div class="cb-top"><div class="lbl">Error you will see</div><div class="tag err">ERROR</div></div>
+        <pre>ERROR   : volatility.debug    : /home/kali/Desktop/output/ is not a directory</pre>
+      </div>
+      <p><strong>Why:</strong> Volatility will not create the output folder for you. If it does not exist, the <code>dumpfiles</code> command fails immediately.</p>
+      <p style="margin-top:6px"><strong>Fix:</strong> Always run <code>mkdir -p ~/Desktop/output</code> before using dumpfiles. The <code>-p</code> flag means it will not error if the folder already exists.</p>
+    </div>
+
+    <div class="box success">
+      <div class="bx-label">✅ Setup complete — you are ready when</div>
+      <p>No <code>ImportError: No module named Crypto.Hash</code> lines appear. You see <strong>Suggested Profile(s): Win7SP1x64</strong>. The output folder <code>~/Desktop/output/</code> exists. You are inside the <code>~/volatility/</code> folder.</p>
+    </div>
+
+    <h3 class="sub">Full Setup Summary — All Commands in Correct Order</h3>
+    <div class="code-block">
+      <div class="cb-top"><div class="lbl">Complete setup checklist — run in this exact order</div><div class="tag linux">LINUX</div></div>
+      <pre># S1 — Install Python 2.7 dev headers (MUST be first)
+sudo apt install python2.7-dev python2-dev -y
+
+# S2 — Install distorm3 (works now because S1 gave us the headers)
+python2.7 -m pip install --user distorm3==3.4.4
+
+# S3 — Download and enter Volatility 2
+cd ~
+git clone https://github.com/volatilityfoundation/volatility.git
+cd volatility
+
+# S4 — Fix the Crypto.Hash errors (enables hashdump and other plugins)
+python2.7 -m pip install --user pycryptodome
+
+# S5 — Create output folder, then verify
+mkdir -p ~/Desktop/output
+python2.7 vol.py -f ~/Desktop/MemoryDump_Lab1.raw imageinfo
+
+# ✓ EVERY investigation command uses this pattern:
+python2.7 vol.py -f ~/Desktop/MemoryDump_Lab1.raw --profile=Win7SP1x64 [plugin]</pre>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════
+     INVESTIGATION
+═══════════════════════════════════ -->
+<div class="divider green-d">🔍 THE INVESTIGATION — STEP BY STEP</div>
+
+<p>From this point on, every step has three parts: <strong>(1) what we are trying to find out and why</strong>, <strong>(2) what command to run</strong>, <strong>(3) what to look for in the output</strong>. Read all three before you type anything.</p>
+
+
+<!-- STEP 1 -->
+<div class="divider" id="step1" style="margin-top:30px">STEP 1 — IDENTIFY THE OS</div>
+
+<div class="goal-box">
+  <div class="gb-label">What we are trying to find out</div>
+  <ul>
+    <li>Before Volatility can read anything meaningful, it needs to know <strong>which version of Windows</strong> this dump came from</li>
+    <li>Different versions of Windows store data in different memory locations — Volatility uses an OS-specific map called a <strong>profile</strong></li>
+    <li>Without the right profile, every other command will either fail or give wrong results</li>
+    <li>This is always the very first command in any memory forensics investigation — no exceptions</li>
+  </ul>
+</div>
+
+<div class="cmd-wrap">
+  <div class="cmd-header"><div class="ch-pill">Run this</div><div class="ch-desc">Ask Volatility to identify the OS profile</div></div>
+  <div class="cmd-inner">
+    <div class="code-block">
+      <div class="cb-top"><div class="lbl">Kali — from inside ~/volatility/</div><div class="tag linux">LINUX</div></div>
+      <pre>python2.7 vol.py -f ~/Desktop/MemoryDump_Lab1.raw imageinfo</pre>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin-top:8px">This takes 30–60 seconds. Volatility is scanning the dump to find Windows kernel signatures. Wait until you see output appear.</p>
+  </div>
+</div>
+
+<div class="code-block output-block">
+  <div class="cb-top"><div class="lbl">Your output will look like this</div><div class="tag out">OUTPUT</div></div>
+  <pre>Volatility Foundation Volatility Framework 2.6.1
+INFO    : volatility.debug    : Determining profile based on KDBG search...
+<span class="hl">          Suggested Profile(s) : Win7SP1x64, Win7SP0x64, Win2008R2SP0x64</span>
+                     AS Layer1 : WindowsAMD64PagedMemory (Kernel AS)
+                     AS Layer2 : FileAddressSpace (.../MemoryDump_Lab1.raw)
+                      PAE type : No PAE
+                           DTB : 0x187000L
+           Image date and time : 2019-12-11 14:38:00 UTC+0000
+      Image local date and time : 2019-12-11 20:08:00 +0530</pre>
+</div>
+
+<div class="look-for">
+  <div class="lf-head">What to look for</div>
+  <ul>
+    <li>The line <strong>Suggested Profile(s)</strong> — the first one listed is what we use: <strong>Win7SP1x64</strong></li>
+    <li>Win7 = Windows 7 · SP1 = Service Pack 1 · x64 = 64-bit — this is the OS map Volatility will use</li>
+    <li>Write down <code>Win7SP1x64</code> — you will add <code>--profile=Win7SP1x64</code> to every command from now on</li>
+    <li>The image date tells us the dump was captured on <strong>11 December 2019 at 14:38 UTC</strong></li>
+  </ul>
+</div>
+
+
+<!-- STEP 2 -->
+<div class="divider" id="step2" style="margin-top:30px">STEP 2 — LIST RUNNING PROGRAMS</div>
+
+<div class="goal-box">
+  <div class="gb-label">What we are trying to find out</div>
+  <ul>
+    <li>Every running program on a computer is called a <strong>process</strong>. Windows keeps a list of all processes in memory</li>
+    <li>We want to see what was open when the computer crashed — this confirms the clues in our briefing</li>
+    <li>We are specifically looking for <strong>cmd.exe</strong> (the terminal window the witness saw) and <strong>WinRAR.exe</strong> (the archive program)</li>
+    <li>Each process has a unique number called a <strong>PID (Process ID)</strong> — like a name badge for each running program</li>
+  </ul>
+</div>
+
+<div class="cmd-wrap">
+  <div class="cmd-header"><div class="ch-pill">Run this</div><div class="ch-desc">List all processes that were running</div></div>
+  <div class="cmd-inner">
+    <div class="code-block">
+      <div class="cb-top"><div class="lbl">Kali Terminal</div><div class="tag linux">LINUX</div></div>
+      <pre>python2.7 vol.py -f ~/Desktop/MemoryDump_Lab1.raw --profile=Win7SP1x64 pslist</pre>
+    </div>
+    <div class="box tip" style="margin-top:10px">
+      <div class="bx-label">💡 Save long output to a file</div>
+      <p>The process list is long and will scroll past quickly. Add <code>&gt; ~/Desktop/pslist.txt</code> at the end to save it to a file, then open it in a text editor:<br><code>python2.7 vol.py ... pslist &gt; ~/Desktop/pslist.txt</code></p>
+    </div>
+  </div>
+</div>
+
+<div class="code-block output-block">
+  <div class="cb-top"><div class="lbl">Key lines from the output</div><div class="tag out">OUTPUT</div></div>
+  <pre>Offset(V)          Name              PID    PPID   Start
+...
+0xfffffa800...     explorer.exe      1064   2004   (the Windows desktop)
+<span class="hl">0xfffffa800...     cmd.exe           1984   1064   ← THE TERMINAL WINDOW</span>
+<span class="hl">0xfffffa800...     WinRAR.exe        1512   1064   ← THE ARCHIVE PROGRAM</span>
+0xfffffa800...     mspaint.exe       2424   1064   (drawing program — not used today)
+...</pre>
+</div>
+
+<div class="look-for">
+  <div class="lf-head">What to look for</div>
+  <ul>
+    <li><strong>cmd.exe</strong> — confirmed. The terminal the witness saw. Its PID is <strong>1984</strong></li>
+    <li><strong>WinRAR.exe</strong> — confirmed. An archive was being opened. Its PID is <strong>1512</strong></li>
+    <li>Notice that both have the same PPID (Parent PID) — <strong>1064</strong> — which is explorer.exe, the Windows desktop. This means both were launched by the user from the desktop, not by the system</li>
+  </ul>
+</div>
+
+
+<!-- STEP 3 -->
+<div class="divider" id="step3" style="margin-top:30px">STEP 3 — READ THE TERMINAL HISTORY → FLAG 1</div>
+
+<div class="goal-box">
+  <div class="gb-label">What we are trying to find out</div>
+  <ul>
+    <li>Someone opened a terminal (cmd.exe) and typed something. We want to know <strong>exactly what they typed and what appeared on screen</strong></li>
+    <li>Windows stores terminal input and screen output in a memory buffer called a <strong>console buffer</strong></li>
+    <li>This buffer persists in RAM even after the terminal window is closed — it only disappears when the computer restarts</li>
+    <li>We expect to find something unusual in the output — a Base64-encoded flag hidden in the screen text</li>
+  </ul>
+</div>
+
+<div class="cmd-wrap">
+  <div class="cmd-header"><div class="ch-pill">Run this</div><div class="ch-desc">Read what was typed and displayed in the terminal</div></div>
+  <div class="cmd-inner">
+    <div class="code-block">
+      <div class="cb-top"><div class="lbl">Kali Terminal</div><div class="tag linux">LINUX</div></div>
+      <pre>python2.7 vol.py -f ~/Desktop/MemoryDump_Lab1.raw --profile=Win7SP1x64 consoles</pre>
+    </div>
+  </div>
+</div>
+
+<div class="code-block output-block">
+  <div class="cb-top"><div class="lbl">Output — this is what you will see</div><div class="tag out">OUTPUT</div></div>
+  <pre>ConsoleProcess: conhost.exe Pid: 2104
+Console: 0xff756200 CommandHistorySize: 50
+
+  CommandHistory: Application: cmd.exe
+    CommandCount: 1 LastAdded: 0
+    Commands:
+<span class="hl-o">    cmd #0 at 0x...: St4G3$1</span>
+
+  Screen 0x... X:80 Y:300
+    Dump:
+    Microsoft Windows [Version 6.1.7601]
+    ...
+<span class="hl">    ZmxhZ3t0aDFzXzFzX3RoM18xc3Rfc3Q0ZzMhIX0=</span></pre>
+</div>
+
+<div class="look-for">
+  <div class="lf-head">What to look for</div>
+  <ul>
+    <li>Under <strong>Commands</strong>: the command typed was <code><strong>St4G3$1</strong></code> — this is what they ran in the terminal</li>
+    <li>In the <strong>Dump</strong> section (the screen content): a long string ending in <code>=</code> — this is <strong>Base64-encoded text</strong></li>
+    <li>The string: <code>ZmxhZ3t0aDFzXzFzX3RoM18xc3Rfc3Q0ZzMhIX0=</code></li>
+    <li>It ends with <code>=</code> — the tell-tale sign of Base64. This is our flag in disguise</li>
+  </ul>
+</div>
+
+<h3 class="sub">Decode the Base64 string to reveal Flag 1</h3>
+
+<p>Now we decode that string. Copy the exact string from your output — starting with <code>Zmx</code> and ending with the <code>=</code> sign — and run this:</p>
+
+<div class="code-block">
+  <div class="cb-top"><div class="lbl">Kali Terminal — decode the hidden message</div><div class="tag linux">LINUX</div></div>
+  <pre>echo ZmxhZ3t0aDFzXzFzX3RoM18xc3Rfc3Q0ZzMhIX0= | base64 -d</pre>
+</div>
+
+<div class="box danger">
+  <div class="bx-label">🚫 Copy the string from YOUR output — not from here</div>
+  <p>The string above is from the example. Your output might look identical, but always copy from your own terminal. Do not add any spaces, line breaks, or extra characters. The string must start with a capital Z and end with the <code>=</code> sign. If you see <code>base64: invalid input</code>, you have copied it incorrectly.</p>
+</div>
+
+<div class="flag-box" id="flag1">
+  <div class="fb-label">⚑ Flag 1 — Found in Terminal Memory</div>
+  <div class="fb-val">flag{th1s_1s_th3_1st_st4g3!!}</div>
+  <div class="fb-why">
+    <strong>What just happened?</strong> Someone ran a command called <code>St4G3$1</code> in the terminal. That command printed a Base64-encoded string to the screen. Even though the terminal window was long gone, its entire screen buffer was still sitting in RAM. We found it with the <code>consoles</code> plugin and decoded it in one command. This is why <strong>clearing your screen — or closing the terminal — does not protect you</strong>. The memory buffer stays until the computer restarts.
+  </div>
+</div>
+
+
+<!-- STEP 4 -->
+<div class="divider" id="step4" style="margin-top:30px">STEP 4 — FIND THE HIDDEN ARCHIVE FILE</div>
+
+<div class="goal-box">
+  <div class="gb-label">What we are trying to find out</div>
+  <ul>
+    <li>We know WinRAR was running. But <strong>which file was it opening?</strong> A program can only be opened with a specific file — we need to find the filename and where it is stored</li>
+    <li>The <code>cmdline</code> plugin shows the <strong>full command used to launch each process</strong>, including any files that were passed to it as arguments</li>
+    <li>Once we know the filename, we use <code>filescan</code> to find its <strong>memory address</strong> — then extract it with <code>dumpfiles</code></li>
+  </ul>
+</div>
+
+<div class="cmd-wrap">
+  <div class="cmd-header"><div class="ch-pill">Run this first</div><div class="ch-desc">Find what file WinRAR was opening</div></div>
+  <div class="cmd-inner">
+    <div class="code-block">
+      <div class="cb-top"><div class="lbl">Kali Terminal</div><div class="tag linux">LINUX</div></div>
+      <pre>python2.7 vol.py -f ~/Desktop/MemoryDump_Lab1.raw --profile=Win7SP1x64 cmdline</pre>
+    </div>
+  </div>
+</div>
+
+<div class="code-block output-block">
+  <div class="cb-top"><div class="lbl">Find the WinRAR entry</div><div class="tag out">OUTPUT</div></div>
+  <pre>...
+*************************************
+WinRAR.exe pid:   1512
+Command line : "C:\Program Files\WinRAR\WinRAR.exe"
+<span class="hl">             "C:\Users\Alissa Simpson\Documents\Important.rar"</span>
+...</pre>
+</div>
+
+<div class="look-for">
+  <div class="lf-head">What to look for</div>
+  <ul>
+    <li>Find the <strong>WinRAR.exe</strong> section</li>
+    <li>The file it was told to open: <strong>Important.rar</strong> in Alissa Simpson's Documents</li>
+    <li>This is the archive we need to extract from memory and open</li>
+  </ul>
+</div>
+
+<h3 class="sub">Find the file's memory address</h3>
+
+<p>Now we know the filename. We use <code>filescan</code> to scan all file handles in memory and filter for this specific file. The result gives us the memory address — the exact location of this file's data in RAM.</p>
+
+<div class="code-block">
+  <div class="cb-top"><div class="lbl">Kali Terminal — scan and filter</div><div class="tag linux">LINUX</div></div>
+  <pre>python2.7 vol.py -f ~/Desktop/MemoryDump_Lab1.raw --profile=Win7SP1x64 filescan | grep -i "important"</pre>
+</div>
+
+<div class="box tip">
+  <div class="bx-label">💡 What does | grep do?</div>
+  <p><code>filescan</code> produces thousands of lines — one for every file that was open. The <code>| grep -i "important"</code> part filters it: it only shows lines containing the word "important". The <code>|</code> symbol (called a pipe) passes the output of one command into another. The <code>-i</code> flag makes the search case-insensitive.</p>
+</div>
+
+<div class="code-block output-block">
+  <div class="cb-top"><div class="lbl">Output — one matching line</div><div class="tag out">OUTPUT</div></div>
+  <pre><span class="hl">0x000000003fa3ebc0</span>    16    0  R--r--  \Device\HarddiskVolume2\Users\Alissa Simpson\Documents\Important.rar</pre>
+</div>
+
+<div class="look-for">
+  <div class="lf-head">What to look for</div>
+  <ul>
+    <li>The long number at the start: <strong>0x000000003fa3ebc0</strong> — this is the <strong>memory address</strong> of the file</li>
+    <li>The <code>0x</code> prefix means hexadecimal (base-16 numbering) — just copy it exactly as it appears</li>
+    <li>Write this down — you need it in the next command</li>
+  </ul>
+</div>
+
+<h3 class="sub">Extract the file from memory</h3>
+
+<p>Now we pull the actual file data out of the memory dump using that address and save it to our output folder.</p>
+
+<div class="cmd-wrap">
+  <div class="cmd-header"><div class="ch-pill">Run this</div><div class="ch-desc">Extract Important.rar from the dump</div></div>
+  <div class="cmd-inner">
+    <div class="code-block">
+      <div class="cb-top"><div class="lbl">Kali Terminal</div><div class="tag linux">LINUX</div></div>
+      <pre>python2.7 vol.py -f ~/Desktop/MemoryDump_Lab1.raw --profile=Win7SP1x64 dumpfiles -Q 0x000000003fa3ebc0 -D ~/Desktop/output/</pre>
+    </div>
+    <div class="box warn" style="margin-top:10px">
+      <div class="bx-label">⚠️ Use the address from YOUR output</div>
+      <p>The address <code>0x000000003fa3ebc0</code> is from this guide's example run. The address in your output should match — but if it differs, use yours.</p>
+    </div>
+  </div>
+</div>
+
+<div class="code-block output-block">
+  <div class="cb-top"><div class="lbl">Expected output</div><div class="tag out">OUTPUT</div></div>
+  <pre>Volatility Foundation Volatility Framework 2.6.1
+DataSectionObject 0x3fa3ebc0   None   \Device\...\Important.rar</pre>
+</div>
+
+<p>Go to <code>~/Desktop/output/</code> in your file manager. You will see a file with a long name ending in <strong>.dat</strong>. <strong>Rename it to <code>Important.rar</code></strong> — the <code>.dat</code> extension is just how Volatility names extracted files, but the content is the original archive.</p>
+
+
+<!-- STEP 5 -->
+<div class="divider" id="step5" style="margin-top:30px">STEP 5 — GET THE PASSWORD AND OPEN THE ARCHIVE → FLAG 2</div>
+
+<div class="goal-box">
+  <div class="gb-label">What we are trying to find out</div>
+  <ul>
+    <li>Important.rar is password-protected. We need the password to open it</li>
+    <li>We are not going to guess — we are going to <strong>extract the password hash from memory</strong></li>
+    <li>When Alissa logged into Windows, her password was hashed (scrambled) and stored in RAM by the kernel security process (LSASS). It stays there until the computer shuts down</li>
+    <li>The <code>hashdump</code> plugin reads those cached hashes directly from the LSASS process memory</li>
+    <li>The archive password is Alissa's NTLM hash — in uppercase</li>
+  </ul>
+</div>
+
+<div class="concept">
+  <div class="concept-header"><div class="ch-icon">🔑</div><div><div class="ch-title">What is an NTLM hash — and why can we use it as a password?</div></div></div>
+  <div class="concept-body">
+    <p>Windows never stores your actual password. Instead it stores a <strong>hash</strong> — a scrambled, fixed-length version produced by a mathematical function. When you type your password to log in, Windows hashes what you typed and compares it to the stored hash. If they match, you are in.</p>
+    <p>For this lab, the person who created the archive set its password to be Alissa's NTLM hash (in uppercase). This was deliberate as part of the challenge. In real-world forensics, extracted hashes can be used in <strong>pass-the-hash attacks</strong> — authenticating as a user without knowing their real password, just by using the hash directly.</p>
+  </div>
+</div>
+
+<div class="cmd-wrap">
+  <div class="cmd-header"><div class="ch-pill">Run this</div><div class="ch-desc">Extract Windows password hashes from memory</div></div>
+  <div class="cmd-inner">
+    <div class="code-block">
+      <div class="cb-top"><div class="lbl">Kali Terminal</div><div class="tag linux">LINUX</div></div>
+      <pre>python2.7 vol.py -f ~/Desktop/MemoryDump_Lab1.raw --profile=Win7SP1x64 hashdump</pre>
+    </div>
+  </div>
+</div>
+
+<div class="code-block output-block">
+  <div class="cb-top"><div class="lbl">Output</div><div class="tag out">OUTPUT</div></div>
+  <pre>Volatility Foundation Volatility Framework 2.6.1
+Administrator:500:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+Guest:501:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+<span class="hl">Alissa Simpson:1000:aad3b435b51404eeaad3b435b51404ee:f4ff64c8baac57d22f22edc681055ba6:::</span></pre>
+</div>
+
+<div class="look-for">
+  <div class="lf-head">What to look for</div>
+  <ul>
+    <li>Find the line for <strong>Alissa Simpson</strong></li>
+    <li>The format is: <code>Username : RID : LM Hash : NTLM Hash :::</code></li>
+    <li>The <strong>NTLM hash</strong> is the last long string before the <code>:::</code></li>
+    <li>For Alissa Simpson: <strong>f4ff64c8baac57d22f22edc681055ba6</strong></li>
+    <li>The archive password is this hash in <strong>UPPERCASE</strong>: <code>F4FF64C8BAAC57D22F22EDC681055BA6</code></li>
+  </ul>
+</div>
+
+<h3 class="sub">Open the archive using the hash as the password</h3>
+
+<div class="code-block">
+  <div class="cb-top"><div class="lbl">The password to use — must be UPPERCASE</div></div>
+  <pre>F4FF64C8BAAC57D22F22EDC681055BA6</pre>
+</div>
+
+<p>Navigate to <code>~/Desktop/output/</code> and open <strong>Important.rar</strong>. When asked for a password, enter the hash above in uppercase. You can also use the terminal:</p>
+
+<div class="code-block">
+  <div class="cb-top"><div class="lbl">Kali Terminal — extract with unrar</div><div class="tag linux">LINUX</div></div>
+  <pre>cd ~/Desktop/output
+unrar e Important.rar</pre>
+</div>
+
+<p>When prompted for a password, type: <code>F4FF64C8BAAC57D22F22EDC681055BA6</code></p>
+<p>A file will be extracted. Open it — Flag 2 is inside.</p>
+
+<div class="flag-box" id="flag2">
+  <div class="fb-label">⚑ Flag 2 — Found via Password Hash + Archive</div>
+  <div class="fb-val">flag{w3ll_3rd_stage_was_easy}</div>
+  <div class="fb-why">
+    <strong>What just happened?</strong> Windows caches the NTLM hashes of logged-in users in a kernel process called LSASS (Local Security Authority Subsystem Service). This cache exists so Windows does not need to re-authenticate you constantly. We extracted Alissa's hash from that cache using <code>hashdump</code> and used it as the archive password — demonstrating that <strong>memory forensics can defeat password protection</strong> if the system was running and authenticated at the time of capture.
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════
+     RECAP
+═══════════════════════════════════ -->
+<div class="divider" id="recap">📋 WHAT DID WE ACTUALLY LEARN?</div>
+
+<p>Stepping back — here is what this investigation demonstrated about digital forensics:</p>
+
+<div style="display:grid;grid-template-columns:1fr;gap:12px;margin:18px 0 26px">
+  <div style="background:var(--card);border:1px solid rgba(34,197,94,0.25);border-left:4px solid var(--green);border-radius:0 8px 8px 0;padding:16px 20px">
+    <div style="font-family:var(--head);font-size:16px;font-weight:700;color:var(--green);margin-bottom:6px">1 — RAM holds evidence the hard drive does not</div>
+    <p style="font-size:13.5px;color:var(--muted);margin:0">Commands typed and then deleted, files opened but not saved, passwords entered but not stored — all of these exist in RAM. A memory dump can recover all of it.</p>
+  </div>
+  <div style="background:var(--card);border:1px solid rgba(6,182,212,0.25);border-left:4px solid var(--cyan);border-radius:0 8px 8px 0;padding:16px 20px">
+    <div style="font-family:var(--head);font-size:16px;font-weight:700;color:var(--cyan);margin-bottom:6px">2 — Closing a window does not erase memory</div>
+    <p style="font-size:13.5px;color:var(--muted);margin:0">The terminal window was gone — but its console buffer (with the typed command and its output) stayed in RAM. Forensic tools read RAM directly, not the interface.</p>
+  </div>
+  <div style="background:var(--card);border:1px solid rgba(224,123,57,0.25);border-left:4px solid var(--orange);border-radius:0 8px 8px 0;padding:16px 20px">
+    <div style="font-family:var(--head);font-size:16px;font-weight:700;color:var(--orange);margin-bottom:6px">3 — Encryption is only as strong as the running system</div>
+    <p style="font-size:13.5px;color:var(--muted);margin:0">The archive was password-protected — but the password hash was in RAM from the moment Alissa logged in. Protecting data at rest does not protect it when the system is running and authenticated.</p>
+  </div>
+  <div style="background:var(--card);border:1px solid rgba(139,92,246,0.25);border-left:4px solid var(--purple);border-radius:0 8px 8px 0;padding:16px 20px">
+    <div style="font-family:var(--head);font-size:16px;font-weight:700;color:var(--purple);margin-bottom:6px">4 — Everything you used today is a standard forensic technique</div>
+    <p style="font-size:13.5px;color:var(--muted);margin:0">imageinfo, pslist, consoles, cmdline, filescan, dumpfiles, hashdump — these are real tools used by professional investigators. You just ran a real memory investigation.</p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════
+     QUIZ
+═══════════════════════════════════ -->
+<div class="divider" id="quiz">📝 KNOWLEDGE CHECK</div>
+
+<p style="color:var(--muted);font-size:14px;font-style:italic;margin-bottom:20px">Choose the best answer for each question. Instant feedback appears after each choice.</p>
+
+<div class="quiz-progress">
+  <span class="qp-lbl">Progress</span>
+  <div class="qp-dot" id="dot-0"></div>
+  <div class="qp-dot" id="dot-1"></div>
+  <div class="qp-dot" id="dot-2"></div>
+  <div class="qp-dot" id="dot-3"></div>
+  <div class="qp-dot" id="dot-4"></div>
+</div>
+
+<!-- Q1 -->
+<div class="qcard" id="qc-0">
+  <div class="qcard-head"><div class="q-tag">Question 1</div><div class="q-text">What is a memory dump and why is it useful as forensic evidence?</div></div>
+  <div class="q-opts" id="qo-0">
+    <button class="q-opt" onclick="ans(0,0,false)"><span class="opt-let">A</span><span class="opt-txt">A backup of the hard drive, useful because it contains all the user's saved files.</span></button>
+    <button class="q-opt" onclick="ans(0,1,true)"><span class="opt-let">B</span><span class="opt-txt">A frozen snapshot of everything in RAM at a specific moment — capturing running programs, typed commands, passwords and open files that may never exist on the hard drive.</span></button>
+    <button class="q-opt" onclick="ans(0,2,false)"><span class="opt-let">C</span><span class="opt-txt">A record of all files that were ever deleted from the computer.</span></button>
+    <button class="q-opt" onclick="ans(0,3,false)"><span class="opt-let">D</span><span class="opt-txt">A log of every website visited and application installed.</span></button>
+  </div>
+  <div class="q-fb" id="qf-0"></div>
+</div>
+
+<!-- Q2 -->
+<div class="qcard" id="qc-1">
+  <div class="qcard-head"><div class="q-tag">Question 2</div><div class="q-text">A user types a command in a terminal, then closes the terminal window. Is the command history still recoverable from a memory dump taken immediately after?</div></div>
+  <div class="q-opts" id="qo-1">
+    <button class="q-opt" onclick="ans(1,0,false)"><span class="opt-let">A</span><span class="opt-txt">No — closing the window clears the terminal's memory buffer completely.</span></button>
+    <button class="q-opt" onclick="ans(1,1,false)"><span class="opt-let">B</span><span class="opt-txt">Only if the user did not clear the screen before closing.</span></button>
+    <button class="q-opt" onclick="ans(1,2,true)"><span class="opt-let">C</span><span class="opt-txt">Yes — Windows keeps the console buffer in RAM until the computer restarts. Closing the window removes the interface, not the memory buffer.</span></button>
+    <button class="q-opt" onclick="ans(1,3,false)"><span class="opt-let">D</span><span class="opt-txt">Only if the command produced output — silent commands leave no trace.</span></button>
+  </div>
+  <div class="q-fb" id="qf-1"></div>
+</div>
+
+<!-- Q3 -->
+<div class="qcard" id="qc-2">
+  <div class="qcard-head"><div class="q-tag">Question 3</div><div class="q-text">We found the string <code>ZmxhZ3t0aDFz...=</code> in the terminal output. How did we know it was a hidden flag rather than random noise?</div></div>
+  <div class="q-opts" id="qo-2">
+    <button class="q-opt" onclick="ans(2,0,false)"><span class="opt-let">A</span><span class="opt-txt">We recognised it as a common Windows system message.</span></button>
+    <button class="q-opt" onclick="ans(2,1,false)"><span class="opt-let">B</span><span class="opt-txt">Volatility highlighted it automatically as suspicious.</span></button>
+    <button class="q-opt" onclick="ans(2,2,true)"><span class="opt-let">C</span><span class="opt-txt">The string ends with <code>=</code> — the characteristic padding of Base64 encoding — and appears in the terminal output of a suspicious command, suggesting it contains hidden information that can be decoded.</span></button>
+    <button class="q-opt" onclick="ans(2,3,false)"><span class="opt-let">D</span><span class="opt-txt">It was the only output produced by the terminal command.</span></button>
+  </div>
+  <div class="q-fb" id="qf-2"></div>
+</div>
+
+<!-- Q4 -->
+<div class="qcard" id="qc-3">
+  <div class="qcard-head"><div class="q-tag">Question 4</div><div class="q-text">Why does Volatility require a profile (like <code>Win7SP1x64</code>) before it can use most plugins?</div></div>
+  <div class="q-opts" id="qo-3">
+    <button class="q-opt" onclick="ans(3,0,false)"><span class="opt-let">A</span><span class="opt-txt">The profile is a licence key that activates Volatility's paid features.</span></button>
+    <button class="q-opt" onclick="ans(3,1,false)"><span class="opt-let">B</span><span class="opt-txt">It specifies the language the user was typing in.</span></button>
+    <button class="q-opt" onclick="ans(3,2,false)"><span class="opt-let">C</span><span class="opt-txt">It tells Volatility how large the RAM was on the original machine.</span></button>
+    <button class="q-opt" onclick="ans(3,3,true)"><span class="opt-let">D</span><span class="opt-txt">Different OS versions store data structures at different memory addresses. The profile gives Volatility a map of exactly where to find things like the process list, network connections, and terminal buffers in this specific OS version's memory layout.</span></button>
+  </div>
+  <div class="q-fb" id="qf-3"></div>
+</div>
+
+<!-- Q5 -->
+<div class="qcard" id="qc-4">
+  <div class="qcard-head"><div class="q-tag">Question 5</div><div class="q-text">We used Alissa's NTLM hash to open a password-protected archive without knowing her real password. What forensic concept does this demonstrate?</div></div>
+  <div class="q-opts" id="qo-4">
+    <button class="q-opt" onclick="ans(4,0,false)"><span class="opt-let">A</span><span class="opt-txt">That WinRAR has a known vulnerability that allows password bypass.</span></button>
+    <button class="q-opt" onclick="ans(4,1,true)"><span class="opt-let">B</span><span class="opt-txt">That authenticated systems store credential material in RAM — meaning a memory dump taken from a running, logged-in machine can expose access to encrypted or protected resources without needing the original password.</span></button>
+    <button class="q-opt" onclick="ans(4,2,false)"><span class="opt-let">C</span><span class="opt-txt">That all Windows passwords are stored as plain text and are therefore insecure.</span></button>
+    <button class="q-opt" onclick="ans(4,3,false)"><span class="opt-let">D</span><span class="opt-txt">That NTLM hashes and passwords are always identical strings.</span></button>
+  </div>
+  <div class="q-fb" id="qf-4"></div>
+</div>
+
+<div class="scoreboard" id="scoreboard">
+  <div class="sb-title">// Investigation Complete</div>
+  <div class="sb-score" id="sb-num"></div>
+  <div class="sb-of">CORRECT OUT OF 5</div>
+  <div class="sb-msg" id="sb-msg"></div>
+  <button class="sb-btn" onclick="resetQuiz()">↺ Try Again</button>
+</div>
+
+<div style="height:50px"></div>
+</main>
+</div>
+
+<footer>
+  <div class="f-left">
+    <div class="f-course">CC6010</div>
+    <div class="f-mod">E-Discovery and Digital Investigation</div>
+  </div>
+  <div class="f-right">
+    <div class="f-name">Fatma Yasmine Loumachi</div>
+    <div class="f-sub">Week 4 · Beginner Memory Forensics · MemLabs Lab 1</div>
+  </div>
+</footer>
+
+<script>
+/* NAV HIGHLIGHT */
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
+      const m = document.querySelector(`.sidebar a[href="#${e.target.id}"]`);
+      if (m) m.classList.add('active');
+    }
+  });
+}, { rootMargin: '-15% 0px -70% 0px' });
+document.querySelectorAll('[id]').forEach(el => obs.observe(el));
+
+/* QUIZ */
+const CORRECT = [1, 2, 2, 3, 1];
+const TOTAL = 5;
+let score = 0;
+let done = new Array(TOTAL).fill(false);
+
+const FB = [
+  {
+    c: "Exactly right. A memory dump is a raw snapshot of everything in RAM at capture time — running processes, typed commands, open file handles, cached credentials — things that may never be written to disk. That is what makes it such powerful forensic evidence.",
+    w: "Not quite. A memory dump is specifically a snapshot of RAM — not the hard drive. Its value is that it captures volatile, in-use data: active processes, typed commands, passwords in memory — things that disappear when the computer is switched off."
+  },
+  {
+    c: "Correct. Closing a terminal window removes the visual interface — but the console host process (conhost.exe) and its memory buffer persist in RAM until shutdown. The <code>consoles</code> plugin reads that buffer directly, independently of whether the window is visible.",
+    w: "Not correct. The terminal's console buffer lives in the conhost.exe process memory. Closing the window does not terminate that process or clear its buffer. The history remains in RAM until the computer restarts — which is why the <code>consoles</code> plugin found it."
+  },
+  {
+    c: "Correct. Base64 strings almost always end with one or two <code>=</code> padding characters — this is a well-known characteristic of the encoding. Combined with the suspicious context (a string printed by an unusual command), it strongly indicated hidden encoded content rather than normal system output.",
+    w: "Not quite. Volatility does not flag Base64 strings automatically. The analyst recognises them by their characteristics: they look like random text, use only letters, numbers, <code>+</code>, and <code>/</code>, and end with <code>=</code> padding. This pattern — especially in suspicious output — signals encoded data."
+  },
+  {
+    c: "Correct. The profile is essentially a map of a specific OS version's memory layout. Windows 7 stores its process list at different offsets than Windows 10 or Windows XP. Without the correct profile, Volatility would look in the wrong places and return nothing — or garbage.",
+    w: "Not quite. The profile tells Volatility where to find data structures in memory for a specific OS version. Each version of Windows organises kernel data differently. The profile is the map that makes all other plugins work correctly. Without it, Volatility cannot find the process list, the terminal buffers, or anything else reliably."
+  },
+  {
+    c: "Correct. This is the key forensic insight of the lab. Authenticated systems must keep credential material available in RAM to function — re-authenticating for every file access would be impractical. A live memory dump exposes that material. This is why live system acquisition (capturing RAM while running) is so valuable in forensic investigations.",
+    w: "Not quite. The archive password was Alissa's NTLM hash — set deliberately as part of the challenge — but the deeper principle is real: Windows caches authentication material in RAM (in the LSASS process). Anyone who can capture that RAM can extract those credentials and potentially use them to access protected resources. This is a real-world forensic and attacker technique."
+  }
+];
+
+function ans(q, opt, correct) {
+  if (done[q]) return;
+  done[q] = true;
+
+  const opts = document.querySelectorAll(`#qo-${q} .q-opt`);
+  const fb   = document.getElementById(`qf-${q}`);
+  const card = document.getElementById(`qc-${q}`);
+  const dot  = document.getElementById(`dot-${q}`);
+
+  opts.forEach((b, i) => {
+    b.disabled = true;
+    if (i === opt) b.classList.add(correct ? 'correct' : 'wrong');
+    else if (i === CORRECT[q] && !correct) b.classList.add('correct');
+    else b.classList.add('dimmed');
+  });
+
+  fb.className = `q-fb show ${correct ? 'cfb' : 'wfb'}`;
+  fb.innerHTML = `<div class="fb-badge">${correct ? '✓ Correct' : '✗ Not quite'}</div>${FB[q][correct ? 'c' : 'w']}`;
+  card.classList.add(correct ? 'ac' : 'aw');
+  dot.classList.add(correct ? 'c' : 'w');
+
+  if (correct) score++;
+  if (done.every(Boolean)) showScore();
+}
+
+function showScore() {
+  const board = document.getElementById('scoreboard');
+  const num   = document.getElementById('sb-num');
+  const msg   = document.getElementById('sb-msg');
+  board.classList.add('show');
+  const pct = score / TOTAL;
+  num.textContent = `${score} / ${TOTAL}`;
+  num.style.color = pct === 1 ? 'var(--green)' : pct >= 0.6 ? 'var(--cyan)' : 'var(--orange)';
+  msg.textContent = pct === 1
+    ? "Perfect. You understood every concept in this investigation — not just the commands, but the reasoning behind them."
+    : pct >= 0.6
+    ? "Good result. Go back and re-read the sections covering the questions you missed."
+    : "Keep at it — re-read the concept explanations above each step and try again. Understanding the why matters more than the commands.";
+  board.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function resetQuiz() {
+  score = 0;
+  done = new Array(TOTAL).fill(false);
+  for (let i = 0; i < TOTAL; i++) {
+    document.getElementById(`qc-${i}`).classList.remove('ac','aw');
+    document.querySelectorAll(`#qo-${i} .q-opt`).forEach(b => {
+      b.disabled = false;
+      b.classList.remove('correct','wrong','dimmed');
+    });
+    const f = document.getElementById(`qf-${i}`);
+    f.className = 'q-fb'; f.innerHTML = '';
+    document.getElementById(`dot-${i}`).classList.remove('c','w');
+  }
+  document.getElementById('scoreboard').classList.remove('show');
+  document.getElementById('quiz').scrollIntoView({ behavior: 'smooth' });
+}
+</script>
+</body>
+</html>
