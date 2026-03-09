@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CC6010 – Cyber Risk Assessment & Management Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
+
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --card: #161f30;
+    --border: #1e2d45;
+    --accent: #00e5ff;
+    --accent2: #ff4d6d;
+    --correct: #00ff87;
+    --wrong: #ff4d6d;
+    --text: #e2eaf4;
+    --muted: #6b7fa3;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    padding: 2rem 1rem 4rem;
+    background-image:
+      radial-gradient(ellipse 80% 40% at 50% -10%, rgba(0,229,255,0.07) 0%, transparent 70%),
+      radial-gradient(ellipse 50% 30% at 90% 80%, rgba(255,77,109,0.05) 0%, transparent 60%);
+  }
+
+  header {
+    text-align: center;
+    max-width: 760px;
+    margin: 0 auto 3rem;
+  }
+
+  .tag {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    border: 1px solid rgba(0,229,255,0.3);
+    padding: 4px 12px;
+    border-radius: 2px;
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    font-size: clamp(1.8rem, 5vw, 2.8rem);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.5rem;
+  }
+
+  h1 span { color: var(--accent); }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 0.95rem;
+    font-family: var(--mono);
+  }
+
+  .quiz-container {
+    max-width: 760px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .question-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    transition: border-color 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .question-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px; height: 100%;
+    background: var(--accent);
+    opacity: 0.4;
+  }
+
+  .question-card.answered::before { opacity: 1; }
+  .question-card.correct-card::before { background: var(--correct); }
+  .question-card.wrong-card::before { background: var(--wrong); }
+
+  .q-number {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    margin-bottom: 0.6rem;
+    text-transform: uppercase;
+  }
+
+  .q-text {
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.5;
+    margin-bottom: 1.2rem;
+    color: #cdd9ee;
+  }
+
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .option {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: transparent;
+    font-family: var(--sans);
+    font-size: 0.9rem;
+    color: var(--text);
+    text-align: left;
+    line-height: 1.4;
+    width: 100%;
+  }
+
+  .option:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: rgba(0,229,255,0.04);
+  }
+
+  .option-letter {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+    min-width: 1.2rem;
+    padding-top: 1px;
+    flex-shrink: 0;
+  }
+
+  .option.correct {
+    border-color: var(--correct);
+    background: rgba(0,255,135,0.06);
+    color: var(--correct);
+  }
+
+  .option.correct .option-letter { color: var(--correct); }
+
+  .option.wrong {
+    border-color: var(--wrong);
+    background: rgba(255,77,109,0.06);
+    color: var(--wrong);
+  }
+
+  .option.wrong .option-letter { color: var(--wrong); }
+
+  .option.reveal-correct {
+    border-color: rgba(0,255,135,0.4);
+    background: rgba(0,255,135,0.03);
+    color: var(--correct);
+  }
+
+  .option:disabled { cursor: default; }
+
+  .feedback {
+    margin-top: 1rem;
+    padding: 0.8rem 1rem;
+    border-radius: 5px;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    line-height: 1.6;
+    display: none;
+    border-left: 3px solid;
+  }
+
+  .feedback.show { display: block; }
+  .feedback.correct-fb { border-color: var(--correct); background: rgba(0,255,135,0.05); color: #a0ffd4; }
+  .feedback.wrong-fb { border-color: var(--wrong); background: rgba(255,77,109,0.05); color: #ffa0b2; }
+
+  .score-panel {
+    max-width: 760px;
+    margin: 2rem auto 0;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 2rem;
+    text-align: center;
+    display: none;
+  }
+
+  .score-panel.show { display: block; }
+
+  .score-big {
+    font-size: 4rem;
+    font-weight: 800;
+    font-family: var(--mono);
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 0.5rem;
+  }
+
+  .score-label {
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .grade-badge {
+    display: inline-block;
+    padding: 6px 20px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+    margin-bottom: 1.5rem;
+  }
+
+  .reset-btn {
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    padding: 10px 28px;
+    border-radius: 4px;
+    cursor: pointer;
+    letter-spacing: 0.1em;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+
+  .reset-btn:hover { background: rgba(0,229,255,0.1); }
+
+  .progress-bar {
+    max-width: 760px;
+    margin: 0 auto 2rem;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), #00b4d8);
+    transition: width 0.4s ease;
+    width: 0%;
+  }
+
+  .progress-text {
+    max-width: 760px;
+    margin: 0 auto 0.5rem;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="tag">CC6010 · Digital Investigation &amp; E-Discovery</div>
+  <h1>Cyber Risk Assessment<br>&amp; <span>Management</span></h1>
+  <p class="subtitle">20-question multiple choice quiz — Lecture 23</p>
+</header>
+
+<div class="progress-text">
+  <span id="prog-label">0 / 20 answered</span>
+  <span id="score-label">Score: 0</span>
+</div>
+<div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+
+<div class="quiz-container" id="quiz"></div>
+
+<div class="score-panel" id="score-panel">
+  <div class="score-big" id="final-score">0/20</div>
+  <div class="score-label">Final Score</div>
+  <div class="grade-badge" id="grade-badge"></div>
+  <br>
+  <button class="reset-btn" onclick="resetQuiz()">↺ Retake Quiz</button>
+</div>
+
+<script>
+const questions = [
+  {
+    q: "An organisation decides to purchase cyber insurance to cover the financial costs of a potential data breach. Which risk management strategy does this represent?",
+    options: [
+      "Risk avoidance",
+      "Risk mitigation",
+      "Risk transference",
+      "Risk acceptance"
+    ],
+    answer: 2,
+    explanation: "Risk transference passes the financial exposure to a third party — in this case an insurer. The risk still exists, but the organisation no longer bears the cost alone. Buying cyber insurance is the most common example."
+  },
+  {
+    q: "A company decides not to store payment card data at all, so that even if it is breached, no card details can be stolen. Which risk management strategy is this?",
+    options: [
+      "Risk transference",
+      "Risk avoidance",
+      "Risk acceptance",
+      "Risk mitigation"
+    ],
+    answer: 1,
+    explanation: "Risk avoidance means stopping the risky activity altogether. By not storing card data, the organisation removes the risk entirely rather than reducing or transferring it."
+  },
+  {
+    q: "After a full risk assessment, a security team determines that fixing a particular vulnerability would cost more than the potential loss it could cause. They document this decision and move on. What strategy have they chosen?",
+    options: [
+      "Risk mitigation",
+      "Risk transference",
+      "Risk avoidance",
+      "Risk acceptance"
+    ],
+    answer: 3,
+    explanation: "Risk acceptance means knowingly living with a risk because the cost of fixing it exceeds the likely loss. The key requirement is that this is documented and deliberate — not just neglect."
+  },
+  {
+    q: "What is residual risk?",
+    options: [
+      "The total cost of all identified risks before any controls are applied",
+      "Risk that has been fully eliminated through mitigation",
+      "The risk that remains after a response strategy has been applied",
+      "Risk introduced by a third-party supplier"
+    ],
+    answer: 2,
+    explanation: "Residual risk is what remains after a risk response has been chosen and applied. No strategy eliminates risk completely. Residual risk must be acknowledged and revisited — not ignored."
+  },
+  {
+    q: "Which of the following is the correct order of steps in conducting a risk assessment?",
+    options: [
+      "Identify threats → identify assets → identify vulnerabilities → calculate impact",
+      "Identify assets → identify vulnerabilities → identify threats and likelihood → identify monetary impact",
+      "Calculate impact → identify assets → patch vulnerabilities → monitor threats",
+      "Identify monetary impact → identify assets → identify controls → assess likelihood"
+    ],
+    answer: 1,
+    explanation: "A risk assessment starts with assets (what are we protecting?), then vulnerabilities (what weaknesses exist?), then threats and likelihood (who might exploit them, and how often?), and finally monetary impact (what would it cost?)."
+  },
+  {
+    q: "A risk analyst rates a newly discovered vulnerability as 'High' based on expert judgement and scenario analysis, without using any specific financial figures. Which approach are they using?",
+    options: [
+      "Quantitative risk assessment",
+      "Qualitative risk assessment",
+      "Annualised loss calculation",
+      "Threat modelling"
+    ],
+    answer: 1,
+    explanation: "Qualitative risk assessment uses descriptive ratings — High, Medium, Low — based on expert judgement and scenario workshops. It does not require precise financial data and is useful when hard numbers are unavailable."
+  },
+  {
+    q: "A security manager uses historical incident data to calculate that a server failure costs £40,000 each time it occurs and happens approximately twice a year. Which formula gives the total expected annual cost of this risk?",
+    options: [
+      "ALE = ARO ÷ SLE",
+      "ALE = SLE + ARO",
+      "ALE = SLE × ARO",
+      "ALE = SLE − ARO"
+    ],
+    answer: 2,
+    explanation: "ALE (Annualised Loss Expectancy) = SLE × ARO. In this case: £40,000 × 2 = £80,000/year. This figure can then be compared directly against the cost of any control being considered."
+  },
+  {
+    q: "Using the ALE formula: a ransomware incident costs £60,000 each time it occurs (SLE), and the organisation expects it to happen once every two years. What is the ALE?",
+    options: [
+      "£120,000",
+      "£60,000",
+      "£30,000",
+      "£90,000"
+    ],
+    answer: 2,
+    explanation: "ARO of once every two years = 0.5. ALE = £60,000 × 0.5 = £30,000/year. This means spending more than £30,000 per year on ransomware controls would not be financially justified."
+  },
+  {
+    q: "Which NIST control category covers policies, governance, and accountability — determining who is responsible for security decisions?",
+    options: [
+      "Technical controls",
+      "Operational controls",
+      "Management controls",
+      "Corrective controls"
+    ],
+    answer: 2,
+    explanation: "NIST classifies controls into Management (policies and governance), Operational (day-to-day human processes), and Technical (system-enforced mechanisms). Management controls define responsibility and accountability."
+  },
+  {
+    q: "An IDS alerts security staff when it detects anomalous traffic patterns on the network. Which type of security control is this?",
+    options: [
+      "Preventive",
+      "Corrective",
+      "Detective",
+      "Management"
+    ],
+    answer: 2,
+    explanation: "Detective controls identify that something is happening or has happened. An IDS that alerts on anomalous traffic is a classic example. Preventive controls stop incidents; corrective controls restore normal operations afterwards."
+  },
+  {
+    q: "A security analyst runs port scans and sends crafted packets to a live server to identify vulnerabilities. What type of security analysis is this?",
+    options: [
+      "Passive analysis",
+      "Active analysis",
+      "Fingerprinting",
+      "Anomaly-based analysis"
+    ],
+    answer: 1,
+    explanation: "Active analysis involves directly interacting with the target system — running scans, probing ports, sending crafted packets. Results are current and definitive, but there is a risk of disrupting live services."
+  },
+  {
+    q: "A security professional reviews existing log files and network documentation without sending any traffic to the target. What type of analysis is this?",
+    options: [
+      "Active analysis",
+      "Signature-based monitoring",
+      "Passive analysis",
+      "Behaviour-based analysis"
+    ],
+    answer: 2,
+    explanation: "Passive analysis means observing without touching — reviewing logs, documentation, and traffic already on the wire. Nothing the analyst does affects the live system, making it safe for production environments."
+  },
+  {
+    q: "Vulnerability management is described as a cycle rather than a checklist. Which step involves recording normal system behaviour so that deviations can be identified later?",
+    options: [
+      "Define",
+      "Baseline",
+      "Prioritise",
+      "Monitor"
+    ],
+    answer: 1,
+    explanation: "Baselining records what normal behaviour looks like — typical traffic patterns, running services, CPU load. Without a baseline, you cannot reliably identify what is abnormal. It follows the Define step, which sets the target security state."
+  },
+  {
+    q: "Which penetration testing framework is an XML-based standard used by scanning tools to define machine-readable vulnerability checks?",
+    options: [
+      "OSSTMM",
+      "NIST Pen Testing Guide",
+      "OVAL",
+      "PTES"
+    ],
+    answer: 2,
+    explanation: "OVAL (Open Vulnerability and Assessment Language) is not a testing methodology — it is an XML standard that scanning tools use to define and run vulnerability checks, giving consistent, comparable results across platforms."
+  },
+  {
+    q: "An attacker obtains a stolen password hash and uses a pre-computed lookup table to instantly find the original plaintext password. Which attack technique is this?",
+    options: [
+      "Dictionary attack",
+      "Brute force attack",
+      "Rainbow table attack",
+      "Shoulder surfing"
+    ],
+    answer: 2,
+    explanation: "Rainbow table attacks use pre-computed tables of hash values to instantly reverse a hash to its original password — no guessing required. Salting hashes defeats this technique entirely, which is why salting is a mandatory defence."
+  },
+  {
+    q: "A monitoring system compares incoming network traffic against a library of known attack signatures and alerts when a match is found. Which monitoring methodology is this?",
+    options: [
+      "Anomaly-based monitoring",
+      "Behaviour-based monitoring",
+      "Signature-based monitoring",
+      "Heuristic monitoring"
+    ],
+    answer: 2,
+    explanation: "Signature-based monitoring matches traffic against a library of known attack patterns — like antivirus. It is fast and precise for known threats but completely blind to zero-days, which have no signature yet."
+  },
+  {
+    q: "By default, a network interface card only processes packets addressed to it. What mode must it be placed in to capture all traffic on the network segment?",
+    options: [
+      "Non-promiscuous mode",
+      "Monitor mode",
+      "Passive mode",
+      "Promiscuous mode"
+    ],
+    answer: 3,
+    explanation: "In promiscuous mode, a network adapter captures all packets on the segment — not just those addressed to it. This is required for full network visibility and is the mode Wireshark uses when performing broad traffic analysis."
+  },
+  {
+    q: "What is the role of the SNMP Agent in a network monitoring deployment?",
+    options: [
+      "It acts as the central server that polls all devices and raises alerts",
+      "It is the firewall that filters SNMP queries from external sources",
+      "It is lightweight software on each managed device that responds to queries and sends traps",
+      "It stores all collected performance data in a central database"
+    ],
+    answer: 2,
+    explanation: "The SNMP Agent runs on each managed device. It responds to queries from the NMS (Network Management System) and sends unsolicited 'trap' messages when something significant occurs. The NMS is the central polling server; the Agent is the per-device component."
+  },
+  {
+    q: "During a security audit, a reviewer finds that several user accounts still have access to systems their owners left six months ago. Which audit area has revealed this finding?",
+    options: [
+      "Group policy review",
+      "Vulnerability scan results",
+      "User rights and permissions",
+      "Security log analysis"
+    ],
+    answer: 2,
+    explanation: "Reviewing user rights and permissions checks whether privileged accounts are properly restricted and whether dormant or orphaned accounts have been removed. Active accounts belonging to former employees are a common and serious finding."
+  },
+  {
+    q: "Why is it critical that log files are stored on a separate, access-controlled server rather than on the system being monitored?",
+    options: [
+      "Because log files are too large to store on production systems",
+      "Because logs stored on a compromised machine can be wiped or altered by the attacker",
+      "Because regulatory standards require logs to be kept on dedicated hardware",
+      "Because the monitoring system needs faster read access than production systems allow"
+    ],
+    answer: 1,
+    explanation: "If logs are stored on the compromised machine, an attacker can delete or alter them — destroying the evidence trail. Logs must be written in real time to a separate, access-controlled log server to preserve their integrity and admissibility."
+  }
+];
+
+let answered = 0;
+let score = 0;
+
+function buildQuiz() {
+  const container = document.getElementById('quiz');
+  container.innerHTML = '';
+  answered = 0;
+  score = 0;
+  updateProgress();
+
+  questions.forEach((q, i) => {
+    const card = document.createElement('div');
+    card.className = 'question-card';
+    card.id = `card-${i}`;
+
+    const letters = ['A', 'B', 'C', 'D'];
+
+    card.innerHTML = `
+      <div class="q-number">Question ${String(i+1).padStart(2,'0')} / 20</div>
+      <div class="q-text">${q.q}</div>
+      <div class="options">
+        ${q.options.map((opt, j) => `
+          <button class="option" data-q="${i}" data-opt="${j}" onclick="selectAnswer(${i},${j})">
+            <span class="option-letter">${letters[j]}</span>
+            <span>${opt}</span>
+          </button>
+        `).join('')}
+      </div>
+      <div class="feedback" id="fb-${i}"></div>
+    `;
+    container.appendChild(card);
+  });
+
+  document.getElementById('score-panel').classList.remove('show');
+}
+
+function selectAnswer(qIndex, optIndex) {
+  const q = questions[qIndex];
+  const card = document.getElementById(`card-${qIndex}`);
+  const buttons = card.querySelectorAll('.option');
+  const fb = document.getElementById(`fb-${qIndex}`);
+
+  buttons.forEach(b => b.disabled = true);
+
+  const isCorrect = optIndex === q.answer;
+
+  buttons[optIndex].classList.add(isCorrect ? 'correct' : 'wrong');
+  if (!isCorrect) {
+    buttons[q.answer].classList.add('reveal-correct');
+  }
+
+  card.classList.add('answered', isCorrect ? 'correct-card' : 'wrong-card');
+
+  fb.className = `feedback show ${isCorrect ? 'correct-fb' : 'wrong-fb'}`;
+  fb.innerHTML = `${isCorrect ? '✓ Correct' : '✗ Incorrect'} — ${q.explanation}`;
+
+  if (isCorrect) score++;
+  answered++;
+  updateProgress();
+
+  if (answered === questions.length) {
+    setTimeout(showScore, 600);
+  }
+}
+
+function updateProgress() {
+  document.getElementById('prog-label').textContent = `${answered} / 20 answered`;
+  document.getElementById('score-label').textContent = `Score: ${score}`;
+  document.getElementById('progress-fill').style.width = `${(answered / 20) * 100}%`;
+}
+
+function showScore() {
+  const panel = document.getElementById('score-panel');
+  const pct = Math.round((score / 20) * 100);
+  document.getElementById('final-score').textContent = `${score}/20`;
+
+  const badge = document.getElementById('grade-badge');
+  let grade, color;
+  if (pct >= 90)      { grade = 'Excellent — A'; color = '#00ff87'; }
+  else if (pct >= 75) { grade = 'Good — B';       color = '#00e5ff'; }
+  else if (pct >= 60) { grade = 'Pass — C';        color = '#ffd700'; }
+  else                { grade = 'Needs Revision — F'; color = '#ff4d6d'; }
+
+  badge.textContent = grade;
+  badge.style.background = color + '15';
+  badge.style.border = `1px solid ${color}`;
+  badge.style.color = color;
+
+  panel.classList.add('show');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function resetQuiz() {
+  buildQuiz();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+buildQuiz();
+</script>
+</body>
+</html>
