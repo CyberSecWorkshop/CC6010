@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CC6010 — Workshop 19: Bitcoin Investigation</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --dark:#080B10;--surface:#0E1520;--card:#121A27;--panel:#070A0F;
+  --teal:#0D9488;--teal-l:#5EEAD4;
+  --blue:#3B82F6;--blue-l:#93C5FD;
+  --cyan:#22D3EE;
+  --green:#10B981;--green-l:#6EE7B7;
+  --amber:#F59E0B;--amber-l:#FDE68A;
+  --red:#EF4444;--red-l:#FCA5A5;
+  --text:#CBD5E1;--muted:#64748B;--white:#F8FAFC;
+  --mono:'JetBrains Mono',monospace;
+  --head:'Syne',sans-serif;
+  --body:'DM Sans',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--dark);color:var(--text);font-family:var(--body);font-size:15px;line-height:1.85;display:flex;flex-direction:column;min-height:100vh}
+
+/* ── SIDEBAR ── */
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:240px;background:var(--panel);border-right:1px solid rgba(13,148,136,.18);overflow-y:auto;z-index:100;padding-bottom:80px}
+.sb-logo{padding:20px 18px 14px;border-bottom:1px solid rgba(13,148,136,.15);margin-bottom:4px}
+.sb-week{font-family:var(--mono);font-size:9px;letter-spacing:2.5px;color:var(--teal-l);display:block;margin-bottom:5px;text-transform:uppercase}
+.sb-title{font-family:var(--head);font-size:13px;font-weight:700;color:var(--teal-l);line-height:1.35}
+.nav-group{padding:12px 18px 3px;font-family:var(--mono);font-size:8px;letter-spacing:2.5px;color:rgba(100,116,139,.5);text-transform:uppercase}
+.sidebar a{display:block;padding:5px 18px 5px 22px;font-size:12px;color:var(--muted);text-decoration:none;border-left:2px solid transparent;transition:all .18s;line-height:1.4}
+.sidebar a:hover,.sidebar a.active{color:var(--teal-l);border-left-color:var(--teal-l);background:rgba(13,148,136,.05)}
+.sidebar a.flag-a{color:var(--green-l)}
+.sidebar a.flag-a:hover,.sidebar a.flag-a.active{color:var(--green);border-left-color:var(--green);background:rgba(16,185,129,.05)}
+
+/* ── LAYOUT ── */
+.layout{display:flex;flex:1}
+.main{margin-left:240px;padding:0 48px 80px;max-width:980px;width:100%}
+
+/* ── HERO ── */
+.hero{background:linear-gradient(150deg,#050709 0%,#071415 55%,#050709 100%);border-bottom:2px solid var(--teal);padding:54px 48px 46px;margin:0 -48px 48px;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-80px;right:-40px;width:420px;height:420px;background:radial-gradient(circle,rgba(13,148,136,.13),transparent 62%);pointer-events:none}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(13,148,136,.12);border:1px solid rgba(13,148,136,.45);color:var(--teal-l);font-family:var(--mono);font-size:10px;letter-spacing:3px;padding:5px 14px;border-radius:3px;margin-bottom:20px;text-transform:uppercase}
+.hero h1{font-family:var(--head);font-size:46px;font-weight:800;color:var(--white);line-height:1.08;margin-bottom:14px}
+.hero h1 em{color:var(--teal-l);font-style:normal}
+.hero p.tagline{font-size:15px;color:var(--muted);font-weight:300;max-width:600px;margin-bottom:28px;line-height:1.75}
+.chips{display:flex;flex-wrap:wrap;gap:9px}
+.chip{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:4px 14px;font-size:12px;color:var(--muted)}
+.chip b{color:var(--text);font-weight:500}
+.chip.hi b{color:var(--teal-l)}
+.chip.warn b{color:var(--amber)}
+
+/* ── DIVIDERS ── */
+.divider{margin:48px 0 22px;padding:12px 22px 12px 26px;background:var(--panel);border:1px solid rgba(13,148,136,.22);border-left:5px solid var(--teal);border-radius:0 8px 8px 0;font-family:var(--head);font-size:13px;font-weight:700;color:var(--teal-l);letter-spacing:2px;text-transform:uppercase;display:flex;align-items:center;gap:10px}
+.divider.amber-d{border-left-color:var(--amber);color:var(--amber-l)}
+.divider.green-d{border-left-color:var(--green);color:var(--green-l)}
+.divider.blue-d{border-left-color:var(--blue);color:var(--blue-l)}
+.divider.cyan-d{border-left-color:var(--cyan);color:var(--cyan)}
+
+p{margin-bottom:13px;font-size:14.5px;line-height:1.85}
+strong{color:var(--white);font-weight:600}
+code{font-family:var(--mono);font-size:12.5px;color:var(--teal-l);background:rgba(13,148,136,.1);padding:2px 7px;border-radius:3px}
+
+/* ── SCENARIO ── */
+.scenario-card{background:linear-gradient(135deg,#0B0E18,#071415);border:1px solid rgba(13,148,136,.35);border-left:5px solid var(--teal);border-radius:8px;padding:26px 30px;margin:16px 0;position:relative;overflow:hidden}
+.scenario-card::after{content:'🕵️';position:absolute;right:18px;top:14px;font-size:36px;opacity:.1}
+.sc-ref{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:rgba(13,148,136,.5);margin-bottom:10px;text-transform:uppercase}
+.sc-body p{color:#C8C8C8;font-size:14.5px;margin-bottom:10px;line-height:1.85}
+.sc-body p:last-child{margin:0}
+
+/* ── CONCEPT ── */
+.concept{background:var(--card);border:1px solid rgba(13,148,136,.2);border-radius:10px;margin:16px 0;overflow:hidden}
+.concept-header{background:rgba(13,148,136,.07);border-bottom:1px solid rgba(13,148,136,.14);padding:13px 20px;display:flex;align-items:center;gap:12px}
+.ch-icon{font-size:20px}
+.ch-title{font-family:var(--head);font-size:15px;font-weight:700;color:var(--teal-l)}
+.ch-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.concept-body{padding:18px 22px;font-size:14px;line-height:1.85;color:var(--text)}
+.concept-body p{font-size:14px;margin-bottom:10px}
+.concept-body p:last-child{margin:0}
+
+/* ── ANALOGY ── */
+.analogy{background:linear-gradient(135deg,rgba(13,148,136,.07),rgba(13,148,136,.02));border:1px solid rgba(13,148,136,.28);border-radius:8px;padding:16px 20px;margin:13px 0;font-size:13.5px;color:var(--teal-l);line-height:1.7}
+.analogy .an-label{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--teal);text-transform:uppercase;margin-bottom:7px;font-weight:700}
+
+/* ── BOXES ── */
+.box{border-radius:8px;padding:15px 19px;margin:13px 0;font-size:13.5px;line-height:1.7}
+.box .bx-label{font-family:var(--mono);font-size:9.5px;letter-spacing:2px;text-transform:uppercase;margin-bottom:7px;font-weight:700;display:flex;align-items:center;gap:7px}
+.box.tip{background:rgba(34,211,238,.05);border:1px solid rgba(34,211,238,.22);color:var(--text)}
+.box.tip .bx-label{color:var(--cyan)}
+.box.warn{background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.28);color:#FDE68A}
+.box.warn .bx-label{color:var(--amber)}
+.box.success{background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.28);color:var(--green-l)}
+.box.success .bx-label{color:var(--green)}
+.box.teal{background:rgba(13,148,136,.06);border:1px solid rgba(13,148,136,.28);color:var(--teal-l)}
+.box.teal .bx-label{color:var(--teal-l)}
+.box p{margin:0 0 6px;font-size:13.5px;line-height:1.65}
+.box p:last-child{margin:0}
+.box strong{color:var(--white)}
+
+/* ── GOAL BOX ── */
+.goal-box{background:linear-gradient(135deg,rgba(245,158,11,.06),rgba(245,158,11,.02));border:1px solid rgba(245,158,11,.32);border-radius:8px;padding:16px 20px;margin:15px 0}
+.goal-box .gb-label{font-family:var(--mono);font-size:9px;letter-spacing:2.5px;color:var(--amber);text-transform:uppercase;margin-bottom:10px;font-weight:700;display:flex;align-items:center;gap:8px}
+.goal-box .gb-label::before{content:'🎯'}
+.goal-box ul{list-style:none;padding:0}
+.goal-box ul li{font-size:13.5px;color:var(--amber-l);padding:5px 0 5px 20px;position:relative;line-height:1.6;border-bottom:1px solid rgba(245,158,11,.1)}
+.goal-box ul li:last-child{border:none}
+.goal-box ul li::before{content:'→';position:absolute;left:0;color:var(--amber)}
+
+/* ── STEP BLOCK ── */
+.steps-wrap{margin:18px 0;border:1px solid rgba(13,148,136,.2);border-radius:8px;overflow:hidden}
+.steps-head{background:rgba(13,148,136,.07);border-bottom:1px solid rgba(13,148,136,.14);padding:10px 18px;display:flex;align-items:center;gap:10px}
+.step-pill{background:var(--teal);color:var(--white);font-family:var(--head);font-size:12px;font-weight:700;padding:3px 12px;border-radius:12px;flex-shrink:0}
+.step-pill.amber{background:var(--amber);color:#1a0e00}
+.step-pill.blue{background:var(--blue)}
+.step-pill.green{background:var(--green);color:#052E16}
+.step-desc{font-size:13px;color:var(--text);font-weight:500}
+.steps-body{padding:14px 18px;background:rgba(255,255,255,.005)}
+
+/* ── ROADMAP ── */
+.roadmap{border-left:2px solid rgba(13,148,136,.28);margin:16px 0 26px}
+.rm-item{display:flex;gap:14px;padding:9px 0 9px 22px;position:relative}
+.rm-item::before{content:'';position:absolute;left:-7px;top:16px;width:12px;height:12px;background:var(--teal);border-radius:50%;border:2px solid var(--dark)}
+.rm-item.rm-flag::before{background:var(--green)}
+.rm-item.rm-tool::before{background:var(--amber)}
+.rm-step{font-family:var(--mono);font-size:9px;letter-spacing:1.5px;color:var(--teal-l);min-width:56px;text-transform:uppercase;margin-top:2px;flex-shrink:0}
+.rm-item.rm-flag .rm-step{color:var(--green)}
+.rm-item.rm-tool .rm-step{color:var(--amber)}
+.rm-title{font-family:var(--head);font-size:15px;font-weight:600;color:var(--white);margin-bottom:2px}
+.rm-desc{font-size:12.5px;color:var(--muted)}
+
+/* ── CODE ── */
+.code-block{background:#050709;border:1px solid rgba(13,148,136,.14);border-left:3px solid var(--teal);border-radius:6px;overflow:hidden;margin:9px 0}
+.code-block.out{border-left-color:rgba(255,255,255,.1)}
+.code-block.amber-b{border-left-color:var(--amber)}
+.code-block.green-b{border-left-color:var(--green)}
+.code-block .cb-top{background:rgba(13,148,136,.03);border-bottom:1px solid rgba(13,148,136,.08);padding:5px 14px;display:flex;justify-content:space-between;align-items:center}
+.code-block.out .cb-top{background:rgba(255,255,255,.02);border-bottom-color:rgba(255,255,255,.05)}
+.code-block.amber-b .cb-top{background:rgba(245,158,11,.04);border-bottom-color:rgba(245,158,11,.12)}
+.code-block.green-b .cb-top{background:rgba(16,185,129,.04);border-bottom-color:rgba(16,185,129,.12)}
+.cb-top .lbl{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:rgba(100,116,139,.55);text-transform:uppercase}
+.cb-top .tag{font-family:var(--mono);font-size:9px;padding:1px 8px;border-radius:3px}
+.tag.kali{color:var(--teal-l);background:rgba(13,148,136,.12)}
+.tag.py{color:var(--amber-l);background:rgba(245,158,11,.1)}
+.tag.out-t{color:rgba(100,116,139,.5);background:rgba(255,255,255,.04)}
+.tag.json{color:var(--green-l);background:rgba(16,185,129,.1)}
+pre{font-family:var(--mono);font-size:12.5px;color:#5EEAD4;line-height:1.8;padding:14px 16px;overflow-x:auto;white-space:pre}
+.code-block.out pre{color:#94A3B8}
+.code-block.amber-b pre{color:#FDE68A}
+.code-block.green-b pre{color:var(--green-l)}
+.hl{color:#5EEAD4!important;font-weight:700}
+.hl-a{color:#FDE68A!important;font-weight:700}
+.hl-r{color:#FCA5A5!important;font-weight:700}
+.hl-g{color:#6EE7B7!important;font-weight:700}
+
+/* ── LOOK-FOR ── */
+.look-for{background:rgba(13,148,136,.05);border:1px solid rgba(13,148,136,.22);border-radius:7px;padding:14px 18px;margin:11px 0}
+.look-for .lf-head{font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--teal-l);text-transform:uppercase;margin-bottom:9px;display:flex;align-items:center;gap:7px}
+.look-for .lf-head::before{content:'👁'}
+.look-for ul{list-style:none;padding:0}
+.look-for ul li{font-size:13.5px;color:var(--text);padding:5px 0 5px 20px;position:relative;line-height:1.6;border-bottom:1px solid rgba(255,255,255,.04)}
+.look-for ul li:last-child{border:none}
+.look-for ul li::before{content:'→';position:absolute;left:0;color:var(--teal-l)}
+
+/* ── FLAG BOX ── */
+.flag-box{background:linear-gradient(135deg,rgba(16,185,129,.07),rgba(16,185,129,.02));border:1px solid rgba(16,185,129,.4);border-left:5px solid var(--green);border-radius:8px;padding:22px 28px;margin:24px 0;position:relative;overflow:hidden}
+.flag-box::after{content:'⚑';position:absolute;right:20px;top:12px;font-size:34px;color:rgba(16,185,129,.1)}
+.fb-label{font-family:var(--mono);font-size:9.5px;letter-spacing:3px;color:var(--green);text-transform:uppercase;margin-bottom:9px}
+.fb-val{font-family:var(--mono);font-size:12.5px;color:var(--green-l);margin-bottom:12px;word-break:break-all;line-height:1.7;background:rgba(16,185,129,.05);border:1px solid rgba(16,185,129,.18);border-radius:5px;padding:10px 14px}
+.fb-why{font-size:13px;color:var(--green-l);line-height:1.7;border-top:1px solid rgba(16,185,129,.15);padding-top:11px}
+
+/* ── EVIDENCE TABLE ── */
+.ev-table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13.5px}
+.ev-table th{background:rgba(13,148,136,.1);color:var(--teal-l);font-family:var(--head);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;padding:10px 14px;text-align:left;border:1px solid rgba(13,148,136,.18)}
+.ev-table td{padding:9px 14px;border:1px solid rgba(255,255,255,.06);color:var(--text);vertical-align:top}
+.ev-table tr:nth-child(even) td{background:rgba(255,255,255,.015)}
+.ev-table td:first-child{color:var(--teal-l);font-family:var(--mono);font-size:12px}
+
+/* ── MARKING TABLE ── */
+.marking-table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13px}
+.marking-table th{background:rgba(13,148,136,.1);color:var(--teal-l);font-family:var(--head);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;padding:10px 12px;text-align:left;border:1px solid rgba(13,148,136,.18)}
+.marking-table td{padding:9px 12px;border:1px solid rgba(255,255,255,.06);color:var(--text);vertical-align:top}
+.marking-table tr:nth-child(even) td{background:rgba(255,255,255,.012)}
+.marking-table td:first-child{font-family:var(--mono);font-size:11px;color:var(--teal-l)}
+.mark-pts{font-family:var(--mono);font-size:12px;color:var(--teal-l);font-weight:700}
+
+/* ── QUIZ ── */
+.quiz-progress{display:flex;gap:7px;margin-bottom:20px;align-items:center}
+.qp-lbl{font-family:var(--mono);font-size:9px;letter-spacing:1.5px;color:var(--muted);margin-right:4px;text-transform:uppercase}
+.qp-dot{width:11px;height:11px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);transition:all .3s}
+.qp-dot.c{background:var(--green);border-color:var(--green)}
+.qp-dot.w{background:var(--red);border-color:var(--red)}
+.qcard{background:var(--card);border:1px solid rgba(13,148,136,.2);border-radius:10px;margin:13px 0;overflow:hidden;transition:border-color .25s}
+.qcard.ac{border-color:rgba(16,185,129,.5)}
+.qcard.aw{border-color:rgba(239,68,68,.4)}
+.qcard-head{padding:16px 20px 12px;border-bottom:1px solid rgba(255,255,255,.05)}
+.q-tag{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--teal-l);text-transform:uppercase;margin-bottom:7px}
+.q-text{font-size:14.5px;font-weight:500;color:var(--white);line-height:1.55}
+.q-opts{padding:12px 20px 16px;display:flex;flex-direction:column;gap:8px}
+.q-opt{display:flex;align-items:flex-start;gap:11px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.07);border-radius:7px;padding:10px 13px;cursor:pointer;transition:all .18s;text-align:left;width:100%;font-family:var(--body)}
+.q-opt:hover:not(:disabled){background:rgba(13,148,136,.08);border-color:rgba(13,148,136,.4)}
+.q-opt:disabled{cursor:default}
+.opt-let{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--muted);background:rgba(255,255,255,.06);border-radius:4px;min-width:26px;height:26px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.opt-txt{font-size:13.5px;color:var(--text);line-height:1.5}
+.q-opt.correct{background:rgba(16,185,129,.07);border-color:rgba(16,185,129,.42)}
+.q-opt.correct .opt-let{background:var(--green);color:#052E16}
+.q-opt.correct .opt-txt{color:var(--green-l)}
+.q-opt.wrong{background:rgba(239,68,68,.06);border-color:rgba(239,68,68,.35)}
+.q-opt.wrong .opt-let{background:var(--red);color:var(--white)}
+.q-opt.wrong .opt-txt{color:var(--red-l);text-decoration:line-through}
+.q-opt.dimmed{opacity:.3}
+.q-fb{display:none;margin:0 20px 16px;border-radius:7px;padding:12px 15px;font-size:13.5px;line-height:1.65;animation:fadeUp .3s ease}
+.q-fb.show{display:block}
+.fb-badge{font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;margin-bottom:5px;font-weight:700}
+.q-fb.cfb{background:rgba(16,185,129,.07);border:1px solid rgba(16,185,129,.26);color:var(--green-l)}
+.q-fb.cfb .fb-badge{color:var(--green)}
+.q-fb.wfb{background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.26);color:var(--red-l)}
+.q-fb.wfb .fb-badge{color:var(--red)}
+.scoreboard{display:none;background:var(--panel);border:1px solid rgba(13,148,136,.38);border-radius:10px;padding:32px;margin:24px 0;text-align:center;animation:fadeUp .4s ease}
+.scoreboard.show{display:block}
+.sb-t2{font-family:var(--head);font-size:17px;font-weight:700;color:var(--teal-l);letter-spacing:2px;text-transform:uppercase;margin-bottom:14px}
+.sb-score{font-family:var(--head);font-size:62px;font-weight:800;line-height:1;margin-bottom:5px}
+.sb-of{font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:16px}
+.sb-msg{font-size:14.5px;color:var(--text);margin-bottom:24px;font-style:italic}
+.sb-btn{background:var(--teal);color:var(--white);font-family:var(--head);font-size:15px;font-weight:700;padding:10px 28px;border-radius:6px;border:none;cursor:pointer;transition:background .2s}
+.sb-btn:hover{background:var(--teal-l);color:var(--dark)}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+footer{background:var(--panel);border-top:2px solid var(--teal);margin-left:240px;padding:20px 48px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.f-left .f-course{font-family:var(--mono);font-size:11px;letter-spacing:2px;color:var(--teal-l);text-transform:uppercase}
+.f-left .f-mod{font-family:var(--head);font-size:18px;font-weight:700;color:var(--teal-l)}
+.f-right{text-align:right}
+.f-right .f-name{font-family:var(--head);font-size:18px;font-weight:700;color:var(--white)}
+.f-right .f-sub{font-family:var(--mono);font-size:9.5px;color:var(--muted);letter-spacing:1px;margin-top:2px}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--panel)}::-webkit-scrollbar-thumb{background:var(--teal);border-radius:3px}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- ── SIDEBAR ── -->
+<nav class="sidebar">
+  <div class="sb-logo">
+    <span class="sb-week">// CC6010 · Workshop 19</span>
+    <span class="sb-title">Operation Phantom Coin — Bitcoin Investigation</span>
+  </div>
+  <div class="nav-group">Before You Start</div>
+  <a href="#what">What Are We Doing?</a>
+  <a href="#scenario">Case Briefing</a>
+  <a href="#evidence">Evidence Files</a>
+  <a href="#roadmap-sec">Roadmap</a>
+  <a href="#setup">Setup</a>
+  <div class="nav-group">Task 1 — Evidence Files</div>
+  <a href="#t1-1">1.1 — Read wallet_manifest.txt</a>
+  <a href="#t1-2">1.2 — Read transactions.json</a>
+  <a class="flag-a" href="#finding1">⚑ Finding 1 — Wallet on Device</a>
+  <div class="nav-group">Task 2 — Python on Kali</div>
+  <a href="#t2-1">2.1 — Run the Script</a>
+  <a href="#t2-2">2.2 — Find the Change Address</a>
+  <a href="#t2-3">2.3 — Total BTC Sent</a>
+  <a href="#t2-4">2.4 — Browser Timeline</a>
+  <a class="flag-a" href="#finding2">⚑ Finding 2 — Chain Traced</a>
+  <div class="nav-group">Task 3 — Concepts</div>
+  <a href="#t3-1">3.1 — Keys and Addresses</a>
+  <a href="#t3-2">3.2 — Bitcoin Mixing</a>
+  <a href="#t3-3">3.3 — Seizure and UTXOs</a>
+  <div class="nav-group">Task 4 — Report</div>
+  <a href="#t4-1">4.1 — Findings Section</a>
+  <div class="nav-group">Finish Up</div>
+  <a href="#marking">Marking Criteria</a>
+  <a href="#quiz">Knowledge Check</a>
+</nav>
+
+<!-- ── MAIN ── -->
+<main class="main">
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-badge">CC6010 · Workshop 19</div>
+  <h1>Operation Phantom Coin<br><em>Bitcoin Investigation</em></h1>
+  <p class="tagline">A suspect paid for stolen payment card data using Bitcoin. Your task is to follow the money — trace three transactions, read the wallet file from the seized laptop, correlate browser history with payment dates, and write a forensic report.</p>
+  <div class="chips">
+    <div class="chip hi">Tools: <b>Kali Linux · Python 3</b></div>
+    <div class="chip warn">Case ID: <b>CC6010-2025-047</b></div>
+    <div class="chip">Duration: <b>2 hours</b></div>
+    
+  </div>
+</div>
+
+
+<!-- ══ WHAT ARE WE DOING ══ -->
+<div class="divider" id="what">🧠 WHAT ARE WE DOING? — READ FIRST</div>
+
+<p>Bitcoin is often called anonymous. It is not. Every Bitcoin payment is permanently recorded on a public ledger called the <strong>blockchain</strong>. Anyone can read every transaction ever made — who sent what, to which address, and when. The addresses have no names attached to them, but the payment history is completely open.</p>
+
+<p>In this workshop you are the digital forensic investigator on Case CC6010-2025-047. Three evidence files have been extracted from a seized laptop and placed in your working directory. Your job is to work through them step by step, run a Python analysis script, and build up a complete picture of what happened.</p>
+
+<div class="box warn">
+  <div class="bx-label">⚠️ All evidence in this lab is fictitious</div>
+  <p>All names, addresses, transaction IDs, and amounts in the evidence files are entirely made up for this academic exercise. Do not search for them on any real Bitcoin website.</p>
+</div>
+
+
+<!-- ══ SCENARIO ══ -->
+<div class="divider cyan-d" id="scenario">📁 CASE BRIEFING</div>
+
+<div class="scenario-card">
+  <div class="sc-ref">// Case Reference: CC6010-2025-047 · Evidence: Extracted artefacts · Tools: Kali Linux + Python 3</div>
+  <div class="sc-body">
+    <p>A financial institution has reported suspicious activity involving a subject known as <strong>phantom_ax</strong>. The subject is suspected of paying for stolen payment card data using Bitcoin.</p>
+    <p>A warrant was executed at the home of <strong>Alex Mercer</strong>. A laptop was seized and a forensic image was taken. Three files have been extracted from the image and placed in your working directory. Your task is to trace the Bitcoin payments, confirm the wallet on the seized device, and produce a formal forensic report. Your findings form the basis of your submission for this workshop.</p>
+    <p>The investigation covers three Bitcoin transactions: the suspect purchased Bitcoin through an online exchange, used it to pay a known address, and the leftover change returned to a second address in their own wallet. The browser history on the seized laptop contains entries on the same dates as the payments.</p>
+  </div>
+</div>
+
+<div class="box tip">
+  <div class="bx-label">💡 Three things to keep in mind as you work</div>
+  <p><strong>Exchange → payment → change address.</strong> These three transactions form a chain. Each one is a piece of evidence. Your job is to trace the chain and connect it to the person.</p>
+  <p><strong>The wallet file ties the device to the transactions.</strong> If the wallet on the seized laptop contains the same addresses that sent the payments, you have a direct link between the suspect and the activity.</p>
+  <p><strong>Browser history confirms the timeline.</strong> A visit to blockchain.com on the same day as a payment — checking that transaction — places the suspect actively managing their Bitcoin from this device on that date.</p>
+</div>
+
+
+<!-- ══ EVIDENCE ══ -->
+<div class="divider green-d" id="evidence">💾 EVIDENCE FILES</div>
+
+<p>All four files are in <code>~/bitcoin_lab/</code> on your Kali VM. Read the description of each one before you start — knowing what each file contains changes how you approach each task.</p>
+
+<table class="ev-table">
+  <thead><tr><th>Exhibit</th><th>File</th><th>What it contains</th><th>Used in</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>EXH-001</td>
+      <td>evidence/transactions.json</td>
+      <td>Three linked Bitcoin transactions. Each one has a timestamp, block number, the address that sent the money (input), and the addresses that received it (outputs).</td>
+      <td>Tasks 1.2, 2.1–2.4</td>
+    </tr>
+    <tr>
+      <td>EXH-002</td>
+      <td>evidence/browser_history.csv</td>
+      <td>Website visits recovered from the suspect's browser profiles. Contains timestamps, URLs, page titles, and which browser was used.</td>
+      <td>Tasks 1.2, 2.4</td>
+    </tr>
+    <tr>
+      <td>EXH-003</td>
+      <td>evidence/wallet_manifest.txt</td>
+      <td>Parsed output of the wallet.dat file found on the suspect's laptop. Shows the database format, encryption status, addresses stored in it, and the last time it was used.</td>
+      <td>Tasks 1.1, 3.1</td>
+    </tr>
+    <tr>
+      <td>SCRIPT</td>
+      <td>analyse_evidence.py</td>
+      <td>A Python script that loads EXH-001 and EXH-002. It has four tasks for you to complete. Each task has clear instructions and hints inside the file.</td>
+      <td>Tasks 2.1–2.4</td>
+    </tr>
+  </tbody>
+</table>
+
+
+<!-- ══ ROADMAP ══ -->
+<div class="divider" id="roadmap-sec">🗺 INVESTIGATION ROADMAP</div>
+
+<div class="roadmap" style="margin-top:20px">
+  <div class="rm-item"><div class="rm-step">Task 1</div><div><div class="rm-title">Read the evidence files — understand what you have</div><div class="rm-desc">Open wallet_manifest.txt and transactions.json in a text editor. Read each file carefully — the expected findings below each task show you what to look for.</div></div></div>
+  <div class="rm-item rm-flag"><div class="rm-step">Finding 1</div><div><div class="rm-title">Wallet confirmed on seized device</div><div class="rm-desc">File location, encryption status, addresses recovered, last sync date</div></div></div>
+  <div class="rm-item"><div class="rm-step">Task 2</div><div><div class="rm-title">Python on Kali — trace the transactions and build a browser timeline</div><div class="rm-desc">Complete four coding tasks in analyse_evidence.py. Check your output against the expected findings shown below each task.</div></div></div>
+  <div class="rm-item rm-flag"><div class="rm-step">Finding 2</div><div><div class="rm-title">Transaction chain fully traced</div><div class="rm-desc">Payment confirmed, change address identified, browser dates matched to transactions</div></div></div>
+  <div class="rm-item"><div class="rm-step">Task 3</div><div><div class="rm-title">Three short written questions</div><div class="rm-desc">Keys and addresses, Bitcoin mixing, what to seize. Expected answers are shown below each question.</div></div></div>
+  <div class="rm-item rm-tool"><div class="rm-step">Task 4</div><div><div class="rm-title">Write the Findings section of a forensic report</div><div class="rm-desc">Structured, evidenced, four subsections</div></div></div>
+</div>
+
+
+<!-- ══ SETUP ══ -->
+<div class="divider cyan-d" id="setup">⚙️ SETUP</div>
+
+<div class="steps-wrap">
+  <div class="steps-head"><div class="step-pill">Step 1</div><div class="step-desc">Confirm the evidence files are in place</div></div>
+  <div class="steps-body">
+    <div class="code-block">
+      <div class="cb-top"><div class="lbl">Run in Kali terminal</div><div class="tag kali">KALI</div></div>
+      <pre>ls ~/bitcoin_lab/evidence/
+ls ~/bitcoin_lab/analyse_evidence.py</pre>
+    </div>
+    <div class="box success" style="margin-top:10px">
+      <div class="bx-label">✓ Expected result</div>
+      <p>You should see <code>transactions.json</code>, <code>browser_history.csv</code>, <code>wallet_manifest.txt</code>, and the script path without any errors. If anything is missing, ask your instructor.</p>
+    </div>
+  </div>
+</div>
+
+<div class="steps-wrap">
+  <div class="steps-head"><div class="step-pill">Step 2</div><div class="step-desc">Run the script once before editing it</div></div>
+  <div class="steps-body">
+    <div class="code-block">
+      <div class="cb-top"><div class="lbl">Always run from the bitcoin_lab folder</div><div class="tag kali">KALI</div></div>
+      <pre>cd ~/bitcoin_lab
+python3 analyse_evidence.py</pre>
+    </div>
+    <div class="box tip" style="margin-top:10px">
+      <div class="bx-label">💡 The script is already complete — just run it</div>
+      <p>You do not need to edit anything. Open a terminal and run the script. Read each section of the output carefully — the analysis is done for you. Your job is to understand what the output means and answer the interpretation questions below each task.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════
+     TASK 1
+══════════════════════ -->
+<div class="divider" id="task1" style="margin-top:8px">📂 TASK 1 — READ THE EVIDENCE FILES</div>
+
+<p>Open each file in a text editor on Kali and read it carefully. There is no coding in this task — just reading and interpreting what you find.</p>
+
+
+<div id="t1-1" style="margin-top:28px"></div>
+
+<div class="divider" style="margin-top:0;font-size:12px">TASK 1.1 — Read wallet_manifest.txt (EXH-003) <span style="margin-left:auto;font-size:11px;color:var(--muted);letter-spacing:1px">10 marks</span></div>
+
+<div class="goal-box">
+  <div class="gb-label">What to find in this file</div>
+  <ul>
+    <li>The database format Bitcoin Core uses for wallet.dat</li>
+    <li>Whether the private keys are encrypted — and what that means for the investigation</li>
+    <li>The Bitcoin addresses in the unencrypted key pool</li>
+    <li>The last sync block height and date — when was this wallet last used?</li>
+    <li>Which of those addresses also appear in transactions.json (EXH-001)</li>
+  </ul>
+</div>
+
+<div class="concept">
+  <div class="concept-header"><div class="ch-icon">🔑</div><div><div class="ch-title">What wallet.dat actually contains</div><div class="ch-sub">The file holds private keys — and useful information even when encrypted</div></div></div>
+  <div class="concept-body">
+    <p>Bitcoin Core stores its wallet in a file called wallet.dat using a Berkeley DB database format. Inside it: a pool of private keys (typically 101 pre-generated), their corresponding Bitcoin addresses, and information about the last block the wallet synchronised with. If the user set a passphrase, the private keys are stored encrypted — they cannot be read without it.</p>
+    <p>Importantly, the <strong>addresses</strong> are stored in an unencrypted section of the key pool even when the keys themselves are encrypted. This means the wallet file still reveals which Bitcoin addresses this wallet owns, even if the private keys are locked. The last-used block height also tells you exactly when the wallet was last active — and you can cross-reference that with the transaction timestamps in EXH-001.</p>
+  </div>
+</div>
+
+<div class="look-for">
+  <div class="lf-head">What you should find in wallet_manifest.txt</div>
+  <ul>
+    <li><strong>Database format:</strong> Berkeley DB 4.8 — genuine Bitcoin Core installation. Version string: <code>/Satoshi:25.0.0/</code></li>
+    <li><strong>Encryption:</strong> YES (AES-256-CBC). The private keys cannot be read without the wallet passphrase. The addresses, however, are stored in an unencrypted section and are directly readable.</li>
+    <li><strong>Addresses recovered:</strong> 4 addresses in the unencrypted key pool. Address 1 = <code>1MercerAX9fGV2kQtPDyNz3QWaT7rBuKop</code> · Address 2 = <code>1MercerCH4nGe7xYpLmV8rWqN2sT9bZKuw</code></li>
+    <li><strong>Last sync:</strong> Block 812,389 · 2024-11-08 21:15:44 UTC — this matches the block height of Transaction #3 in EXH-001, confirming the wallet was active at the time of the final transaction.</li>
+    <li><strong>Address linkage:</strong> Address 1 (1MercerAX...) is the input and a previous output in EXH-001. Address 2 (1MercerCH...) is the change output in Transaction #2. Finding both in the wallet file on the seized device proves the same device held the keys for both — the same person controlled the payment and the change.</li>
+  </ul>
+</div>
+
+
+<div id="t1-2" style="margin-top:28px"></div>
+
+<div class="divider" style="margin-top:0;font-size:12px">TASK 1.2 — Read transactions.json (EXH-001) <span style="margin-left:auto;font-size:11px;color:var(--muted);letter-spacing:1px">10 marks</span></div>
+
+<div class="goal-box">
+  <div class="gb-label">What to find in this file</div>
+  <ul>
+    <li>A plain-English summary of what happened in each of the three transactions</li>
+    <li>The two outputs in Transaction #2 — which is the payment and which is the change?</li>
+    <li>The connection between the change address in TX #2 and the wallet file in EXH-003</li>
+  </ul>
+</div>
+
+<div class="concept">
+  <div class="concept-header"><div class="ch-icon">🔄</div><div><div class="ch-title">What a change address is and why it matters</div><div class="ch-sub">It belongs to the sender — and it links two addresses to the same wallet</div></div></div>
+  <div class="concept-body">
+    <p>In Bitcoin you cannot spend just part of an amount — you must use the full value of a previous output. If the suspect has 0.14985 BTC and wants to pay 0.09 BTC, the system takes the full 0.14985 BTC as input and creates two new outputs: 0.09 BTC to the recipient, and 0.05973 BTC back to the sender at a different address. That second address — the one receiving the leftover — is the <strong>change address</strong>.</p>
+    <p>The change address is forensically important because it belongs to the <strong>same wallet</strong> as the input. If that address also appears in the suspect's wallet file on the seized device, you have proven both addresses are controlled by the same person on the same machine.</p>
+  </div>
+</div>
+
+<div class="analogy">
+  <div class="an-label">// Simple analogy</div>
+  You pay for a £9 coffee with a £20 note. You get £11 change back. That £11 is still yours — it came from your wallet and returns to your pocket. In Bitcoin, the leftover goes to your "change address". An investigator who finds that change address in your wallet file knows both addresses — the one you paid from and the change address — belong to you.
+</div>
+
+<div class="look-for">
+  <div class="lf-head">What you should find in transactions.json</div>
+  <ul>
+    <li><strong>TX #1 (2024-11-03):</strong> The exchange address sent 0.14985 BTC to the suspect's primary address (1MercerAX...). This is the suspect funding their wallet from an online exchange.</li>
+    <li><strong>TX #2 (2024-11-05):</strong> The suspect's address sent 0.14985 BTC into the transaction. Two outputs were created: 0.09 BTC to the marketplace address (1DarkMkt...) and 0.05973 BTC back to 1MercerCH... as change. A miner fee of 0.00012 BTC was paid.</li>
+    <li><strong>TX #3 (2024-11-08):</strong> The marketplace address consolidated its funds and sent 0.32385 BTC to address 1MixerPool... — consistent with a mixing service being used to obscure the trail.</li>
+    <li><strong>Change address:</strong> In TX #2, output 1 (1DarkMkt..., 0.09 BTC) is the payment. Output 2 (1MercerCH..., 0.05973 BTC) is the change — it goes back to the sender. We know this because 1MercerCH... appears in the wallet key pool in EXH-003. A wallet only holds keys it generated itself, so this address belongs to the same person who sent the payment.</li>
+  </ul>
+</div>
+
+
+<div class="flag-box" id="finding1">
+  <div class="fb-label">⚑ Finding 1 — Wallet Confirmed on Seized Device</div>
+  <div class="fb-val">
+    Source   : wallet_manifest.txt (EXH-003)<br>
+    Location : C:\Users\amercer\AppData\Roaming\Bitcoin\wallet.dat<br>
+    Format   : Berkeley DB 4.8 — genuine Bitcoin Core 25.0.0<br>
+    Encrypted: YES (AES-256-CBC) — private key recovery requires passphrase<br>
+    Addresses 1 &amp; 2 in wallet → match addresses in EXH-001 transaction chain<br>
+    Last sync: 2024-11-08 21:15:44 UTC → matches TX #3 block height (812,389)
+  </div>
+  <div class="fb-why">
+    The wallet file contains the same two Bitcoin addresses that appear in the payment chain. The last sync timestamp aligns with the third transaction. This directly links the physical device to the on-chain payments.
+  </div>
+</div>
+
+
+<!-- ══════════════════════
+     TASK 2
+══════════════════════ -->
+<div class="divider amber-d" id="task2" style="margin-top:8px">🐍 TASK 2 — RUN THE SCRIPT AND INTERPRET THE OUTPUT</div>
+
+<p>All Task 2 work is done by running <code>analyse_evidence.py</code> on Kali. The script is already complete — you do not write any code. For each subtask: run the script, read the output carefully, and answer the interpretation questions. The expected output is shown below each task so you can check your results.</p>
+
+
+<div id="t2-1" style="margin-top:28px"></div>
+<div class="divider" style="margin-top:0;font-size:12px">TASK 2.1 — Run the Script — Baseline Output <span style="margin-left:auto;font-size:11px;color:var(--muted);letter-spacing:1px">5 marks</span></div>
+
+<p>Run the script and read the output carefully. You will need the address labels and transaction details shown here for Tasks 2.2, 2.3, and 2.4.</p>
+
+<div class="code-block">
+  <div class="cb-top"><div class="lbl">Run the script</div><div class="tag kali">KALI</div></div>
+  <pre>cd ~/bitcoin_lab
+python3 analyse_evidence.py</pre>
+</div>
+
+<div class="look-for">
+  <div class="lf-head">What your script output should show</div>
+  <ul>
+    <li>Four named addresses: SUSPECT PRIMARY, SUSPECT CHANGE, MARKETPLACE KNOWN, EXCHANGE DEPOSIT — each with its full Bitcoin address printed below</li>
+    <li>Three transactions, each showing the timestamp, block number, money in (inputs), money out (outputs), and miner fee</li>
+    <li>If you see a FileNotFoundError, make sure the <code>evidence/</code> folder is in the same folder as the script and that you are running from that directory</li>
+  </ul>
+</div>
+
+
+<div id="t2-2" style="margin-top:28px"></div>
+<div class="divider" style="margin-top:0;font-size:12px">TASK 2.2 — Identify the Change Address <span style="margin-left:auto;font-size:11px;color:var(--muted);letter-spacing:1px">15 marks</span></div>
+
+<p>Run the script and look at the Task 2.2 section of the output. The script checks each output address in Transaction #2 and labels it as either a payment or a change address. Read the output carefully and answer the interpretation questions below.</p>
+
+<div class="look-for">
+  <div class="lf-head">What your script output should show</div>
+  <ul>
+    <li><strong>Output 1:</strong> Address <code>1DarkMktXpQ3vR7yNsW5bLcF2eJ9mHkZad</code> · 0.09000000 BTC · Role: <strong>PAYMENT (sent to marketplace)</strong></li>
+    <li><strong>Output 2:</strong> Address <code>1MercerCH4nGe7xYpLmV8rWqN2sT9bZKuw</code> · 0.05973000 BTC · Role: <strong>CHANGE ADDRESS (belongs to suspect)</strong></li>
+    <li><strong>Why it matters:</strong> 1MercerCH... is the change address. It appears in both Transaction #2 (as an output) and in wallet_manifest.txt (as Address 2 in the key pool). A wallet only holds keys it generated itself — finding this address in both sources proves the same device, and the same person, controlled the payment and the change return.</li>
+
+  </ul>
+</div>
+
+
+<div id="t2-3" style="margin-top:28px"></div>
+<div class="divider" style="margin-top:0;font-size:12px">TASK 2.3 — Read the Total BTC Sent to the Marketplace <span style="margin-left:auto;font-size:11px;color:var(--muted);letter-spacing:1px">10 marks</span></div>
+
+<p>Run the script and look at the Task 2.3 section of the output. The script searches all three transactions for payments to the marketplace address and prints a running total. Read the output and answer the interpretation questions below.</p>
+
+<div class="look-for">
+  <div class="lf-head">What your script output should show</div>
+  <ul>
+    <li><strong>TX #1:</strong> nothing found · <strong>TX #2:</strong> Found: 0.09000000 BTC · <strong>TX #3:</strong> nothing found</li>
+    <li><strong>Total: 0.09000000 BTC</strong> sent to the marketplace address across all three transactions</li>
+    <li><strong>Why it matters:</strong> The total confirms a single deliberate payment of 0.09 BTC was made to the known marketplace address on 2024-11-05. This is the financial evidence at the core of the case — a specific amount, on a specific date, from an address confirmed to be on the suspect's seized device.</li>
+
+  </ul>
+</div>
+
+
+<div id="t2-4" style="margin-top:28px"></div>
+<div class="divider" style="margin-top:0;font-size:12px">TASK 2.4 — Read the Browser History Timeline <span style="margin-left:auto;font-size:11px;color:var(--muted);letter-spacing:1px">15 marks</span></div>
+
+<div class="concept">
+  <div class="concept-header"><div class="ch-icon">🗓</div><div><div class="ch-title">Why browser history corroborates the transactions</div><div class="ch-sub">A website visit on the same day as a payment is not a coincidence</div></div></div>
+  <div class="concept-body">
+    <p>The blockchain records that address <code>1MercerAX9fGV2kQtPDy...</code> sent 0.09 BTC to the marketplace on 2024-11-05 at 14:37:08 UTC. The browser history shows the same laptop queried that transaction on blockchain.com at 14:10 on the same day — 27 minutes before the transaction was confirmed. That places the suspect actively watching their own payment from the device that holds the wallet.</p>
+    <p>Tor Browser sessions on 2024-11-04 are also in the history. Tor is not installed by default on Windows — its presence on the device, and its active use the evening before the payment, is a relevant observation about what the suspect was doing in the period around the transaction.</p>
+  </div>
+</div>
+
+
+
+<div class="look-for">
+  <div class="lf-head">What your script output should show</div>
+  <ul>
+    <li><strong>Matching entries:</strong> 12 entries — all blockchain.com, coinbase, localbitcoins, and onion-address visits. The two Tor Browser entries should end with <code>[TOR]</code>.</li>
+    <li><strong>Sequence of events (Q1):</strong> 28 Oct — suspect checks their own address on blockchain.com (wallet already existed). 30 Oct — visits LocalBitcoins to buy Bitcoin. 1–3 Nov — logs into Coinbase and sends Bitcoin, which funds Transaction #1 on 3 Nov. 4 Nov evening — two Tor Browser sessions the night before the payment. 5 Nov 14:10 — checks Transaction #2 on blockchain.com, 27 minutes before it is confirmed at 14:37. 5 Nov 14:11 — also checks the marketplace address directly. 8 Nov 21:00 — checks the change address, matching the wallet's last sync time in EXH-003.</li>
+    <li><strong>The 14:10 visit (Q2):</strong> The URL in the browser history contains the exact transaction ID of Transaction #2 (b2c3d4e5...). That transaction was confirmed at 14:37:08 UTC — 27 minutes after the visit. The suspect was watching their own payment settle from the device that holds the wallet.</li>
+
+  </ul>
+</div>
+
+
+<div class="flag-box" id="finding2">
+  <div class="fb-label">⚑ Finding 2 — Transaction Chain Fully Traced</div>
+  <div class="fb-val">
+    TX #1 (2024-11-03) : Exchange → suspect_primary received 0.14985 BTC<br>
+    TX #2 (2024-11-05) : suspect_primary → marketplace 0.09 BTC + suspect_change 0.05973 BTC<br>
+    TX #3 (2024-11-08) : Marketplace consolidated funds to a mixing address<br>
+    Change address (suspect_change) confirmed in wallet.dat — same device, same suspect<br>
+    Browser : blockchain.com lookup at 14:10 on 2024-11-05 · Tor Browser sessions on 2024-11-04<br>
+    Wallet last sync : 2024-11-08 21:15:44 UTC — matches TX #3 block height
+  </div>
+  <div class="fb-why">
+    The three transactions form a complete chain. The change address in TX #2 appears in the wallet on the seized laptop, directly linking the device to the payments. The browser history places the suspect actively checking these transactions from the same device on the same dates.
+  </div>
+</div>
+
+
+<!-- ══════════════════════
+     TASK 3
+══════════════════════ -->
+<div class="divider blue-d" id="task3" style="margin-top:8px">📖 TASK 3 — CONCEPTUAL QUESTIONS</div>
+
+<p>Three short written questions. Write your answers in your own words — aim for 3–6 sentences each. The expected answer below each task shows you what a good response covers.</p>
+
+
+<div id="t3-1" style="margin-top:28px"></div>
+<div class="divider" style="margin-top:0;font-size:12px">TASK 3.1 — Bitcoin Addresses and Private Keys <span style="margin-left:auto;font-size:11px;color:var(--muted);letter-spacing:1px">10 marks</span></div>
+
+<div class="box teal">
+  <div class="bx-label">📌 Reminder from this investigation</div>
+  <p>wallet_manifest.txt says the private keys are encrypted with AES-256-CBC. The addresses were recoverable from the unencrypted portion of the key pool. Both Address 1 and Address 2 appear in the transaction chain.</p>
+</div>
+
+<div class="look-for">
+  <div class="lf-head">What a good answer covers</div>
+  <ul>
+    <li><strong>Key derivation (Q1):</strong> Private key (256-bit random number) → ECDSA → 64-byte public key → SHA-256 → RIPEMD-160 → 20-byte hash → Base58Check encoding → Bitcoin address (starts with 1 for P2PKH, or 3 for P2SH). Each step is a one-way function — you can go from private key to address, but you cannot reverse it.</li>
+    <li><strong>Encrypted wallet (Q2):</strong> Options are: (1) use bitcoin2john to extract the hash, then Hashcat or John the Ripper with a dictionary attack (e.g. rockyou.txt) or brute-force; (2) search physical and digital exhibits for the passphrase written down, in a notes app, or in a password manager. Even without the keys, the investigation still has: the addresses from the unencrypted pool, the full on-chain transaction history, and the last sync timestamp — all of which link the device to the payments.</li>
+  </ul>
+</div>
+
+
+<div id="t3-2" style="margin-top:28px"></div>
+<div class="divider" style="margin-top:0;font-size:12px">TASK 3.2 — Bitcoin Mixing — Transaction #3 <span style="margin-left:auto;font-size:11px;color:var(--muted);letter-spacing:1px">5 marks</span></div>
+
+<div class="code-block green-b">
+  <div class="cb-top"><div class="lbl">Transaction #3 from EXH-001 — the mixing step</div><div class="tag json">JSON</div></div>
+  <pre>{
+  "description": "Marketplace consolidation",
+  "inputs" : [
+    { "address": "<span class="hl-a">1DarkMkt...</span>", "value_btc": 0.09000000 },
+    { "address": "<span class="hl-a">1DarkMkt...</span>", "value_btc": 0.23400000 }
+  ],
+  "outputs": [
+    { "address": "<span class="hl-r">1MixerPool...</span>", "value_btc": 0.32385000 }
+  ]
+}</pre>
+</div>
+
+<div class="look-for">
+  <div class="lf-head">What a good answer covers</div>
+  <ul>
+    <li><strong>What mixing does:</strong> A mixer takes Bitcoin from multiple senders, pools it, and sends different coins to output addresses. The one-to-one link between input and output is broken — you cannot directly trace which input corresponds to which output.</li>
+    <li><strong>Why it is used:</strong> To make it harder for investigators to follow the money and connect a receiving address to the original sender.</li>
+    <li><strong>What is still available:</strong> Chain analytics tools (Chainalysis, Elliptic) use pattern analysis and address clustering to sometimes identify mixer outputs. The exchange that funded Transaction #1 holds account records — this is the most productive remaining step. And the device evidence already gathered (wallet, browser history, transaction chain) is sufficient for the case against the suspect regardless of what happens to the funds after the mixer.</li>
+  </ul>
+</div>
+
+
+<div id="t3-3" style="margin-top:28px"></div>
+<div class="divider" style="margin-top:0;font-size:12px">TASK 3.3 — Why Seizing the Hard Drive Is Not Enough <span style="margin-left:auto;font-size:11px;color:var(--muted);letter-spacing:1px">5 marks</span></div>
+
+<div class="look-for">
+  <div class="lf-head">What a good answer covers</div>
+  <ul>
+    <li><strong>No balance file exists:</strong> A Bitcoin balance is not stored anywhere — it is a calculation. To know how much an address holds, you scan the blockchain and sum all unspent transaction outputs (UTXOs) pointing to it. The hard drive holds the private key (in wallet.dat), which is what allows funds to be spent — not the coins themselves.</li>
+    <li><strong>Without the passphrase:</strong> If the wallet passphrase is never recovered, the private keys remain encrypted and unreadable. The investigator can see the address and balance on the blockchain but cannot move or seize the funds. Knowing the balance is useless without the key.</li>
+    <li><strong>What else to look for:</strong> Seed phrases (12 or 24 common English words written on paper, photographed, or in a notes app) which regenerate all keys from scratch. Hardware wallets (Ledger, Trezor devices). The passphrase in a password manager, email, or cloud notes. Other devices (phones, USB drives) that may hold a wallet copy.</li>
+  </ul>
+</div>
+
+
+<!-- ══════════════════════
+     TASK 4
+══════════════════════ -->
+<div class="divider green-d" id="task4" style="margin-top:8px">📋 TASK 4 — FORENSIC REPORT: FINDINGS SECTION</div>
+
+
+<div id="t4-1" style="margin-top:28px"></div>
+<div class="divider" style="margin-top:0;font-size:12px">TASK 4.1 — Write the Findings Section <span style="margin-left:auto;font-size:11px;color:var(--muted);letter-spacing:1px">20 marks</span></div>
+
+<p>Using your analysis from Tasks 1–3, write the <strong>Findings</strong> section of a formal forensic report. It must be structured, factual, and suitable for a formal proceeding. The expected structure below shows what a complete answer includes.</p>
+
+<div class="concept">
+  <div class="concept-header"><div class="ch-icon">⚖️</div><div><div class="ch-title">What makes a forensic findings section defensible</div><div class="ch-sub">Every claim must have a source. Vague language is not acceptable.</div></div></div>
+  <div class="concept-body">
+    <p>A forensic report is not a story — it is a record of evidenced fact. Every claim must reference an exhibit number, a file path, a hash, or a specific output. <em>"The wallet was found on the laptop"</em> is too vague. <em>"wallet.dat was recovered at C:\Users\amercer\AppData\Roaming\Bitcoin\wallet.dat, SHA-256: [value], consistent with EXH-003"</em> is forensically correct — it is verifiable.</p>
+    <p>Use measured language. Write <em>"the evidence shows"</em> not <em>"it is obvious that"</em>. Write <em>"browser history (EXH-002) contains an entry at 14:10 on 2024-11-05"</em> not <em>"the suspect was definitely checking their wallet"</em>. The findings section states what you found — the conclusion subsection is where you connect it all together.</p>
+  </div>
+</div>
+
+<div class="look-for">
+  <div class="lf-head">What a complete findings section includes</div>
+  <ul>
+    <li><strong>Section 1 — Artefacts:</strong> wallet_manifest.txt (EXH-003) from <code>C:\Users\amercer\AppData\Roaming\Bitcoin\</code>, SHA-256: 4f9a2b1d..., Berkeley DB 4.8, Bitcoin Core 25.0.0, encrypted. transactions.json (EXH-001) — three transactions with block heights, timestamps, and addresses. browser_history.csv (EXH-002) — 13 entries from Chrome and Tor Browser, 2024-10-28 to 2024-11-08.</li>
+    <li><strong>Section 2 — Transaction trace:</strong> TX #1 (Block 812,044, 2024-11-03): exchange → suspect_primary 0.14985 BTC. TX #2 (Block 812,201, 2024-11-05): suspect_primary → marketplace 0.09 BTC + suspect_change 0.05973 BTC. Change address 1MercerCH... confirmed in wallet key pool (EXH-003). TX #3 (Block 812,389, 2024-11-08): marketplace → mixer 0.32385 BTC. Block height matches wallet last sync in EXH-003.</li>
+    <li><strong>Section 3 — Browser correlation:</strong> 2024-11-05 14:10:03 Chrome visit to blockchain.com querying txid b2c3d4e5... — 27 minutes before TX #2 confirmed at 14:37 UTC. Two Tor Browser sessions recorded 2024-11-04 23:11 and 23:29 — the evening before the payment. 2024-11-08 21:00:01 Chrome visit to suspect_change address matching wallet last sync at 21:15:44 UTC.</li>
+    <li><strong>Section 4 — Conclusion:</strong> wallet.dat (EXH-003) contains addresses suspect_primary and suspect_change, both appearing in EXH-001 transaction chain. Payment of 0.09 BTC on 2024-11-05 originated from suspect_primary, change returned to suspect_change — both in the same wallet on the seized device. Browser history places the device actively monitoring these transactions on the same dates. Passphrase recovery recommended. Exchange account records for the address that funded TX #1 recommended as next step.</li>
+  </ul>
+</div>
+
+
+<!-- ══ MARKING ══ -->
+<div class="divider" id="marking">📊 MARKING CRITERIA</div>
+
+<table class="marking-table">
+  <thead><tr><th>Task</th><th>Description</th><th>Marks</th></tr></thead>
+  <tbody>
+    <tr><td>1.1</td><td>Wallet manifest correctly read — all fields, encryption implications explained, address-to-transaction linkage identified</td><td class="mark-pts">10</td></tr>
+    <tr><td>1.2</td><td>Three transactions accurately summarised + change address identified and explained</td><td class="mark-pts">10</td></tr>
+    <tr><td>2.1</td><td>Script runs without errors and output is recorded correctly</td><td class="mark-pts">5</td></tr>
+    <tr><td>2.2</td><td>Change address correctly identified from the output + significance explained</td><td class="mark-pts">15</td></tr>
+    <tr><td>2.3</td><td>Correct BTC total read from the output + relevance explained</td><td class="mark-pts">10</td></tr>
+    <tr><td>2.4</td><td>Filtered output read correctly, [TOR] entries identified + both questions answered</td><td class="mark-pts">15</td></tr>
+    <tr><td>3.1</td><td>Key derivation chain explained correctly (ECDSA, hashing, Base58Check) + recovery options named</td><td class="mark-pts">10</td></tr>
+    <tr><td>3.2</td><td>Mixing explained clearly + investigative steps identified</td><td class="mark-pts">5</td></tr>
+    <tr><td>3.3</td><td>UTXO model and seizure implications correctly explained</td><td class="mark-pts">5</td></tr>
+    <tr><td>4.1</td><td>Structured report — every claim sourced to an exhibit, transactions traced correctly, browser correlation made, conclusion uses measured language</td><td class="mark-pts">20</td></tr>
+    <tr style="background:rgba(13,148,136,.06)"><td colspan="2"><strong>Total</strong></td><td class="mark-pts" style="color:var(--amber-l)">105</td></tr>
+  </tbody>
+</table>
+
+
+<!-- ══ QUIZ ══ -->
+<div class="divider amber-d" id="quiz">📝 KNOWLEDGE CHECK</div>
+
+<p style="color:var(--muted);font-size:14px;font-style:italic;margin-bottom:20px">Five questions to test your understanding before you submit. These are for your own benefit — they are not marked.</p>
+
+<div class="quiz-progress">
+  <span class="qp-lbl">Progress</span>
+  <div class="qp-dot" id="dot-0"></div>
+  <div class="qp-dot" id="dot-1"></div>
+  <div class="qp-dot" id="dot-2"></div>
+  <div class="qp-dot" id="dot-3"></div>
+  <div class="qp-dot" id="dot-4"></div>
+</div>
+
+<div class="qcard" id="qc-0">
+  <div class="qcard-head"><div class="q-tag">Question 1</div><div class="q-text">In Transaction #2, the suspect sends 0.09 BTC to the marketplace and 0.05973 BTC to a second address. You find that second address in wallet_manifest.txt on the seized laptop. A colleague argues the second address could belong to anyone. Why is this argument wrong?</div></div>
+  <div class="q-opts" id="qo-0">
+    <button class="q-opt" onclick="ans(0,0,false)"><span class="opt-let">A</span><span class="opt-txt">The colleague is right. A change address is just an output — any address can receive change, including one belonging to a third party. wallet_manifest.txt is a tool output, not a court-verified record, and cannot definitively prove the suspect controlled that address without additional corroboration.</span></button>
+    <button class="q-opt" onclick="ans(0,1,true)"><span class="opt-let">B</span><span class="opt-txt">Bitcoin wallets generate change addresses only from their own key pool — they do not hold keys for third parties. Both addresses appear in the same wallet file on the same device. A wallet can only hold keys it generated, so finding both in wallet_manifest.txt proves the same person controlled both.</span></button>
+    <button class="q-opt" onclick="ans(0,2,false)"><span class="opt-let">C</span><span class="opt-txt">The argument is wrong because Bitcoin protocol rules require the sending wallet to generate the change address before broadcasting. This is enforced at the protocol level and means the change address is always traceable to the sender's wallet software, regardless of what name is attached to it.</span></button>
+    <button class="q-opt" onclick="ans(0,3,false)"><span class="opt-let">D</span><span class="opt-txt">The argument is wrong because the 0.05973 BTC value is a non-round remainder — the mathematical result of subtracting the payment and fee from the input. A third-party recipient would receive an agreed round amount, not a leftover calculated by the sender's wallet, so the fractional value itself signals a change output.</span></button>
+  </div>
+  <div class="q-fb" id="qf-0"></div>
+</div>
+
+<div class="qcard" id="qc-1">
+  <div class="qcard-head"><div class="q-tag">Question 2</div><div class="q-text">wallet_manifest.txt shows the wallet is encrypted with AES-256-CBC. A colleague says: "Since we can't read the private keys, this file is useless as evidence." What is wrong with that reasoning?</div></div>
+  <div class="q-opts" id="qo-1">
+    <button class="q-opt" onclick="ans(1,0,false)"><span class="opt-let">A</span><span class="opt-txt">The colleague is correct. Without the private keys there is no proof the suspect authorised any transaction — Bitcoin addresses are just strings, and holding a file that lists them does not prove control. Digital forensics requires direct evidence of key ownership, which an encrypted wallet where keys are unreadable simply cannot provide.</span></button>
+    <button class="q-opt" onclick="ans(1,1,false)"><span class="opt-let">B</span><span class="opt-txt">The colleague is wrong because AES-256 is vulnerable to GPU-accelerated attacks. With a suitable wordlist, the passphrase can often be recovered within hours. Once decrypted, the private keys become directly readable and the wallet file becomes fully probative evidence linking the suspect to every address it generated.</span></button>
+    <button class="q-opt" onclick="ans(1,2,true)"><span class="opt-let">C</span><span class="opt-txt">The colleague is wrong. The addresses are in the unencrypted key pool — both suspect_primary and suspect_change are readable and match the transaction chain. The last sync block height matches TX #3 exactly. And the use of encryption is itself relevant — the suspect took deliberate steps to protect the keys.</span></button>
+    <button class="q-opt" onclick="ans(1,3,false)"><span class="opt-let">D</span><span class="opt-txt">The colleague is wrong because a court can issue a disclosure order requiring the suspect to provide the passphrase. Refusing to comply can itself constitute an offence under investigatory powers legislation. This makes the encrypted wallet a significant investigative lever even before any technical cracking attempt is made.</span></button>
+  </div>
+  <div class="q-fb" id="qf-1"></div>
+</div>
+
+<div class="qcard" id="qc-2">
+  <div class="qcard-head"><div class="q-tag">Question 3</div><div class="q-text">The browser history shows Tor Browser was used on 2024-11-04 at 23:11. No website URLs are recoverable because Tor Browser does not save URL history to disk. A lawyer argues this entry is useless. What forensic value does it retain?</div></div>
+  <div class="q-opts" id="qo-2">
+    <button class="q-opt" onclick="ans(2,0,true)"><span class="opt-let">A</span><span class="opt-txt">Even without a URL, the entry proves the browser was actively running at 23:11 on 2024-11-04 — not just installed. That date is the evening before TX #2. Tor requires deliberate installation and does not come with Windows. Its active use on this specific date is a relevant part of the picture around the payment.</span></button>
+    <button class="q-opt" onclick="ans(2,1,false)"><span class="opt-let">B</span><span class="opt-txt">The lawyer is correct. Browser history entries without a URL have no evidential content — they show only that a browser process was open. Including them without a URL risks undermining the report's credibility by introducing claims that cannot be verified or attributed to any specific activity during the investigation period.</span></button>
+    <button class="q-opt" onclick="ans(2,2,false)"><span class="opt-let">C</span><span class="opt-txt">The entry proves Tor was installed and running, but using Tor is entirely legal and widespread among privacy-conscious users. Without a URL, the timestamp cannot be connected to the transaction or to any specific website visit, so it carries no investigative weight and should not be included in the forensic report.</span></button>
+    <button class="q-opt" onclick="ans(2,3,false)"><span class="opt-let">D</span><span class="opt-txt">The entry has limited standalone value, but it can be cross-referenced with ISP connection logs to establish the destination of the Tor circuit at that timestamp. Once the destination is confirmed through external corroboration, the browser history entry becomes directly evidential and the timestamp gains full probative value.</span></button>
+  </div>
+  <div class="q-fb" id="qf-2"></div>
+</div>
+
+<div class="qcard" id="qc-3">
+  <div class="qcard-head"><div class="q-tag">Question 4</div><div class="q-text">Transaction #3 shows the marketplace sending all its funds to a mixing address. Does this end the investigation? What is still available?</div></div>
+  <div class="q-opts" id="qo-3">
+    <button class="q-opt" onclick="ans(3,0,false)"><span class="opt-let">A</span><span class="opt-txt">Yes — mixing is specifically designed to sever on-chain linkage by pooling inputs from many sources and redistributing unrelated UTXOs to each output. Once funds enter a mixer the mathematical connection between input and output is permanently broken and no further blockchain tracing is forensically reliable.</span></button>
+    <button class="q-opt" onclick="ans(3,1,false)"><span class="opt-let">B</span><span class="opt-txt">TX #3 is not directly relevant to the suspect — the case rests on TX #2 where their wallet sent the payment. What the marketplace does with the funds afterwards involves a different party. Investigators should focus resources on the confirmed evidence from the seized device rather than pursuing the transaction trail beyond the point of the suspect's involvement.</span></button>
+    <button class="q-opt" onclick="ans(3,2,true)"><span class="opt-let">C</span><span class="opt-txt">No. Mixing makes hop-by-hop tracing harder but does not end the investigation. Chain analytics tools can sometimes identify mixer outputs using pattern analysis. The exchange that funded TX #1 holds account records — the most direct remaining step. And the device evidence already gathered is sufficient for the case regardless of what happens after the mixer.</span></button>
+    <button class="q-opt" onclick="ans(3,3,false)"><span class="opt-let">D</span><span class="opt-txt">The mixing service can be subpoenaed using financial services legislation, which requires money transmission businesses to maintain transaction records. This would reveal the output addresses and recipient identities, effectively reconstructing the trail the mixer was designed to obscure and restoring the complete chain of custody for the funds.</span></button>
+  </div>
+  <div class="q-fb" id="qf-3"></div>
+</div>
+
+<div class="qcard" id="qc-4">
+  <div class="qcard-head"><div class="q-tag">Question 5</div><div class="q-text">Your report conclusion states: "The wallet found on the seized device controlled the addresses used in the payments." A reviewer says this is too vague to be forensically defensible. What must be stated explicitly?</div></div>
+  <div class="q-opts" id="qo-4">
+    <button class="q-opt" onclick="ans(4,0,false)"><span class="opt-let">A</span><span class="opt-txt">Replace "controlled" with "may have controlled" — since the private keys were not recovered due to encryption, direct proof of control cannot be established. Hedging the language correctly reflects that the link between the device and the addresses is inferential. Forensic reports must accurately represent the limits of the evidence they cite.</span></button>
+    <button class="q-opt" onclick="ans(4,1,false)"><span class="opt-let">B</span><span class="opt-txt">The sentence is acceptable. The exhibit list at the top of the report identifies EXH-003 as wallet_manifest.txt and EXH-001 as the transactions file. A reader with access to those exhibits can verify the claim independently, so repeating the exhibit detail and hash in every sentence would make the report unnecessarily verbose without adding evidential value.</span></button>
+    <button class="q-opt" onclick="ans(4,2,false)"><span class="opt-let">C</span><span class="opt-txt">Move the sentence to a separate conclusions appendix. Mixing evidential findings with interpretive claims in the main findings section risks blurring the line between what was directly observed and what was inferred. The findings section should contain only what was physically found — all linkage arguments should appear in a clearly labelled conclusions section.</span></button>
+    <button class="q-opt" onclick="ans(4,3,true)"><span class="opt-let">D</span><span class="opt-txt">The sentence must spell out the evidence chain: which addresses were in the wallet (with exhibit reference and hash), which transactions they appear in (with exhibit, block, and date), and what the match demonstrates. A reviewer must be able to follow every step without inferring anything. "The wallet found on the device" tells you nothing verifiable on its own.</span></button>
+  </div>
+  <div class="q-fb" id="qf-4"></div>
+</div>
+
+<div class="scoreboard" id="scoreboard">
+  <div class="sb-t2">// Check Complete</div>
+  <div class="sb-score" id="sb-num"></div>
+  <div class="sb-of">CORRECT OUT OF 5</div>
+  <div class="sb-msg" id="sb-msg"></div>
+  <button class="sb-btn" onclick="resetQuiz()">↺ Try Again</button>
+</div>
+
+<div style="height:50px"></div>
+</main>
+</div>
+
+<footer>
+  <div class="f-left">
+    <div class="f-course">CC6010 · Workshop 19</div>
+    <div class="f-mod">Digital Investigation & E-Discovery</div>
+  </div>
+  <div class="f-right">
+    <div class="f-name">Operation Phantom Coin — Bitcoin Investigation</div>
+    <div class="f-sub">Kali Linux · Python 3 · Case CC6010-2025-047</div>
+    <div style="font-family:var(--head);font-size:15px;font-weight:700;color:var(--teal-l);margin-top:6px">Fatma Yasmine Loumachi</div>
+  </div>
+</footer>
+
+<script>
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
+      const m = document.querySelector(`.sidebar a[href="#${e.target.id}"]`);
+      if (m) m.classList.add('active');
+    }
+  });
+}, { rootMargin: '-10% 0px -70% 0px' });
+document.querySelectorAll('[id]').forEach(el => obs.observe(el));
+
+const CORRECT=[1,2,0,2,3], TOTAL=5;
+let score=0, done=new Array(TOTAL).fill(false);
+const FB=[
+  {c:"Correct. Bitcoin wallets generate change addresses from their own key pool and cannot hold keys for other people. Both addresses appear in the same wallet file on the same device — that file only contains keys the wallet created itself. Having both in the same place is direct evidence of control over both.",
+   w:"Not quite. Bitcoin wallets generate change addresses from their own internal key pool — they cannot hold private keys for addresses they did not create. Both suspect_primary and suspect_change are in the same wallet.dat on the same seized device. That wallet only holds keys it generated. Having both in the same file on the same machine is direct evidence that the same person controlled both."},
+  {c:"Correct. The wallet retains significant value even without the private keys. The addresses are in the unencrypted key pool — both match the transaction chain. The last sync block height exactly matches TX #3. And the use of encryption is itself relevant: it shows the suspect took steps to protect the keys from exactly this kind of examination.",
+   w:"Not quite. wallet_manifest.txt retains significant value even without recovering the private keys. The addresses in the unencrypted key pool are readable — both match the transaction chain. The last sync block height matches TX #3 exactly. And the encryption itself is relevant: it shows the suspect knew the key file could be examined and acted to protect it."},
+  {c:"Correct. The entry proves the browser was actively running at 23:11 on 2024-11-04. That is the evening before TX #2 was sent the following day. Tor requires deliberate installation — it is not on Windows by default. Its active use on this specific date is a relevant observation about the suspect's activity in the period around the payment.",
+   w:"Not quite. Even without a URL, the entry proves the browser was running at 23:11 on 2024-11-04 — not just installed but in use. That date is the evening before TX #2. Tor is not installed by default on Windows. Its active use immediately before the payment is a relevant part of the timeline."},
+  {c:"Correct. Mixing makes hop-by-hop tracing harder but does not end the investigation. Chain analytics tools can sometimes identify mixer outputs. The exchange that funded TX #1 holds account records. And the device evidence already gathered is sufficient for the case regardless of what happens to the funds beyond the mixer.",
+   w:"Not quite. Mixing reduces the effectiveness of on-chain tracing but several avenues remain. Chain analytics tools use pattern analysis on mixer outputs. The exchange that funded TX #1 holds account records — that is the most productive next step. The device evidence is already sufficient for the case."},
+  {c:"Correct. The sentence must state the specific evidence chain: which addresses, in which exhibit (with hash), appearing in which transactions (with exhibit, block, date), and what that proves. A reviewer must be able to follow every step without inferring anything. 'The wallet found on the device' tells you nothing on its own.",
+   w:"Not quite. The reviewer's concern is the absence of an explicit evidence chain. A forensic conclusion must name the specific addresses, cite the exhibit they were found in (with hash), name the specific transactions those addresses appear in (with exhibit, block, date), and state what the correspondence demonstrates. Each of those is a separate verifiable fact."}
+];
+
+function ans(q,opt,correct){
+  if(done[q])return;
+  done[q]=true;
+  document.querySelectorAll(`#qo-${q} .q-opt`).forEach((b,i)=>{
+    b.disabled=true;
+    if(i===opt)b.classList.add(correct?'correct':'wrong');
+    else if(i===CORRECT[q]&&!correct)b.classList.add('correct');
+    else b.classList.add('dimmed');
+  });
+  const fb=document.getElementById(`qf-${q}`);
+  fb.className=`q-fb show ${correct?'cfb':'wfb'}`;
+  fb.innerHTML=`<div class="fb-badge">${correct?'✓ Correct':'✗ Not quite'}</div>${FB[q][correct?'c':'w']}`;
+  document.getElementById(`qc-${q}`).classList.add(correct?'ac':'aw');
+  document.getElementById(`dot-${q}`).classList.add(correct?'c':'w');
+  if(correct)score++;
+  if(done.every(Boolean))showScore();
+}
+function showScore(){
+  const board=document.getElementById('scoreboard'),num=document.getElementById('sb-num'),msg=document.getElementById('sb-msg');
+  board.classList.add('show');
+  const pct=score/TOTAL;
+  num.textContent=`${score} / ${TOTAL}`;
+  num.style.color=pct===1?'var(--green)':pct>=.6?'var(--teal-l)':'var(--amber)';
+  msg.textContent=pct===1?"Perfect — you understood not just the steps but the reasoning behind each one.":pct>=.6?"Good. Re-read the concept boxes for the questions you missed.":"Work back through the tasks. For each step, ask: what does this evidence actually prove?";
+  board.scrollIntoView({behavior:'smooth',block:'center'});
+}
+function resetQuiz(){
+  score=0;done=new Array(TOTAL).fill(false);
+  for(let i=0;i<TOTAL;i++){
+    document.getElementById(`qc-${i}`).classList.remove('ac','aw');
+    document.querySelectorAll(`#qo-${i} .q-opt`).forEach(b=>{b.disabled=false;b.classList.remove('correct','wrong','dimmed');});
+    const f=document.getElementById(`qf-${i}`);f.className='q-fb';f.innerHTML='';
+    document.getElementById(`dot-${i}`).classList.remove('c','w');
+  }
+  document.getElementById('scoreboard').classList.remove('show');
+  document.getElementById('quiz').scrollIntoView({behavior:'smooth'});
+}
+</script>
+</body>
+</html>
