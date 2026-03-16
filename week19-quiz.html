@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CC6010 – Bitcoin Digital Investigation Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
+
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --card: #161f30;
+    --border: #1e2d45;
+    --accent: #00e5ff;
+    --accent2: #ff4d6d;
+    --correct: #00ff87;
+    --wrong: #ff4d6d;
+    --text: #e2eaf4;
+    --muted: #6b7fa3;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    padding: 2rem 1rem 4rem;
+    background-image:
+      radial-gradient(ellipse 80% 40% at 50% -10%, rgba(0,229,255,0.07) 0%, transparent 70%),
+      radial-gradient(ellipse 50% 30% at 90% 80%, rgba(255,77,109,0.05) 0%, transparent 60%);
+  }
+
+  header {
+    text-align: center;
+    max-width: 760px;
+    margin: 0 auto 3rem;
+  }
+
+  .tag {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    border: 1px solid rgba(0,229,255,0.3);
+    padding: 4px 12px;
+    border-radius: 2px;
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    font-size: clamp(1.8rem, 5vw, 2.8rem);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.5rem;
+  }
+
+  h1 span { color: var(--accent); }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 0.95rem;
+    font-family: var(--mono);
+  }
+
+  .quiz-container {
+    max-width: 760px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .question-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    transition: border-color 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .question-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px; height: 100%;
+    background: var(--accent);
+    opacity: 0.4;
+  }
+
+  .question-card.answered::before { opacity: 1; }
+  .question-card.correct-card::before { background: var(--correct); }
+  .question-card.wrong-card::before { background: var(--wrong); }
+
+  .q-number {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    margin-bottom: 0.6rem;
+    text-transform: uppercase;
+  }
+
+  .q-text {
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.5;
+    margin-bottom: 1.2rem;
+    color: #cdd9ee;
+  }
+
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .option {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: transparent;
+    font-family: var(--sans);
+    font-size: 0.9rem;
+    color: var(--text);
+    text-align: left;
+    line-height: 1.4;
+    width: 100%;
+  }
+
+  .option:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: rgba(0,229,255,0.04);
+  }
+
+  .option-letter {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+    min-width: 1.2rem;
+    padding-top: 1px;
+    flex-shrink: 0;
+  }
+
+  .option.correct {
+    border-color: var(--correct);
+    background: rgba(0,255,135,0.06);
+    color: var(--correct);
+  }
+
+  .option.correct .option-letter { color: var(--correct); }
+
+  .option.wrong {
+    border-color: var(--wrong);
+    background: rgba(255,77,109,0.06);
+    color: var(--wrong);
+  }
+
+  .option.wrong .option-letter { color: var(--wrong); }
+
+  .option.reveal-correct {
+    border-color: rgba(0,255,135,0.4);
+    background: rgba(0,255,135,0.03);
+    color: var(--correct);
+  }
+
+  .option:disabled { cursor: default; }
+
+  .feedback {
+    margin-top: 1rem;
+    padding: 0.8rem 1rem;
+    border-radius: 5px;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    line-height: 1.6;
+    display: none;
+    border-left: 3px solid;
+  }
+
+  .feedback.show { display: block; }
+  .feedback.correct-fb { border-color: var(--correct); background: rgba(0,255,135,0.05); color: #a0ffd4; }
+  .feedback.wrong-fb { border-color: var(--wrong); background: rgba(255,77,109,0.05); color: #ffa0b2; }
+
+  .score-panel {
+    max-width: 760px;
+    margin: 2rem auto 0;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 2rem;
+    text-align: center;
+    display: none;
+  }
+
+  .score-panel.show { display: block; }
+
+  .score-big {
+    font-size: 4rem;
+    font-weight: 800;
+    font-family: var(--mono);
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 0.5rem;
+  }
+
+  .score-label {
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .grade-badge {
+    display: inline-block;
+    padding: 6px 20px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+    margin-bottom: 1.5rem;
+  }
+
+  .reset-btn {
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    padding: 10px 28px;
+    border-radius: 4px;
+    cursor: pointer;
+    letter-spacing: 0.1em;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+
+  .reset-btn:hover { background: rgba(0,229,255,0.1); }
+
+  .progress-bar {
+    max-width: 760px;
+    margin: 0 auto 2rem;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), #00b4d8);
+    transition: width 0.4s ease;
+    width: 0%;
+  }
+
+  .progress-text {
+    max-width: 760px;
+    margin: 0 auto 0.5rem;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="tag">CC6010 · Digital Investigation &amp; E-Discovery</div>
+  <h1>Bitcoin Digital<br><span>Investigation</span></h1>
+  <p class="subtitle">20-question multiple choice quiz — Lecture 19</p>
+</header>
+
+<div class="progress-text">
+  <span id="prog-label">0 / 20 answered</span>
+  <span id="score-label">Score: 0</span>
+</div>
+<div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+
+<div class="quiz-container" id="quiz"></div>
+
+<div class="score-panel" id="score-panel">
+  <div class="score-big" id="final-score">0/20</div>
+  <div class="score-label">Final Score</div>
+  <div class="grade-badge" id="grade-badge"></div>
+  <br>
+  <button class="reset-btn" onclick="resetQuiz()">↺ Retake Quiz</button>
+</div>
+
+<script>
+const questions = [
+  {
+    q: "Bitcoin is often described as anonymous. Which term is more accurate — and why does the distinction matter to an investigator?",
+    options: [
+      "Fully anonymous — Bitcoin addresses contain no name and cannot be linked to a person under any circumstances.",
+      "Pseudonymous — addresses carry no names, but the entire transaction history of every address is permanently public and readable by anyone.",
+      "Encrypted — all transaction data is encrypted end-to-end and requires a court order to decrypt.",
+      "Private — only the sender and recipient can see a transaction; all other nodes see only metadata."
+    ],
+    answer: 1,
+    explanation: "Bitcoin is pseudonymous: the address itself carries no name, but every transaction ever made is permanently recorded on a public blockchain. Anyone with a browser can read the complete history of any address. That public ledger is the investigator's greatest asset — and the reason 'anonymous' is dangerously wrong."
+  },
+  {
+    q: "What was the core design problem Bitcoin was built to solve — and what forensic consequence did that solution create?",
+    options: [
+      "Bitcoin was designed to eliminate transaction fees. The consequence is that all transactions are stored in plaintext on government servers.",
+      "Bitcoin was designed to prevent double-spending without a central authority. To do this, every transaction must be permanently public — which means investigators can read the entire history of every address without a warrant.",
+      "Bitcoin was designed to speed up international transfers. The consequence is that transactions settle within seconds and cannot be reversed.",
+      "Bitcoin was designed to replace physical cash. The consequence is that transactions are anonymous by default, mirroring the privacy of physical notes."
+    ],
+    answer: 1,
+    explanation: "Without a central bank to prevent double-spending, Bitcoin requires every transaction to be recorded on a public ledger visible to all. This is the design choice that makes the system trustworthy — and simultaneously makes every transaction permanently traceable. Investigators can read this ledger freely, without any legal process directed at Bitcoin itself."
+  },
+  {
+    q: "What does a block in the blockchain contain?",
+    options: [
+      "A single transaction, a digital signature from the miner, and the sender's IP address.",
+      "A batch of validated transactions, a timestamp, and the hash of the previous block.",
+      "The private keys of all participants in that block's transactions, stored in encrypted form.",
+      "A copy of the entire blockchain up to that point, allowing any node to verify history independently."
+    ],
+    answer: 1,
+    explanation: "Each block contains a batch of validated transactions, a timestamp, and crucially, the hash of the previous block. That last element is what chains the blocks together — changing anything in any block invalidates every hash from that point forward, making the record tamper-evident."
+  },
+  {
+    q: "An investigator suspects a transaction record on the blockchain has been altered. Why is this concern almost certainly unfounded?",
+    options: [
+      "Blockchain transactions are protected by SSL encryption, which prevents modification in transit.",
+      "Only the original sender can modify a transaction, and they can only do so within 10 minutes of broadcast.",
+      "Each block contains the hash of the previous block. Altering any transaction changes that block's hash, which invalidates every subsequent block. Every node on the network would reject the altered version instantly.",
+      "The blockchain is stored on government-controlled servers that are protected from modification by law."
+    ],
+    answer: 2,
+    explanation: "The hash-chaining mechanism makes silent alteration computationally impossible. Change one character in a historical transaction and every hash from that block forward becomes wrong. Every one of thousands of independent nodes would reject it. An investigator can trust what the blockchain shows — it is mathematically proven to be in the state it was when written."
+  },
+  {
+    q: "In the Bitcoin key hierarchy, what is the private key — and why is it the forensic target rather than the address?",
+    options: [
+      "The private key is a public identifier stored on the blockchain. It is the forensic target because it reveals the owner's identity directly.",
+      "The private key is a 256-bit random number stored in wallet.dat. It is the forensic target because it is what gives the ability to spend funds — find the key and you control the Bitcoin.",
+      "The private key is a 34-character address string. It is the forensic target because it links to the suspect's real name through the exchange registration.",
+      "The private key is generated by the exchange at account creation. It is the forensic target because subpoenaing the exchange reveals it directly."
+    ],
+    answer: 1,
+    explanation: "The private key is a 256-bit random number stored in wallet.dat. It proves authorisation and is used to sign every transaction. Crucially, knowing the address alone lets you see the balance and history but gives you no ability to spend. The private key is what grants control — which is why finding wallet.dat on a seized device is the primary forensic objective."
+  },
+  {
+    q: "What is the correct order of steps in the Bitcoin address derivation chain?",
+    options: [
+      "Address → SHA-256 → RIPEMD-160 → ECDSA → Private Key",
+      "Private Key → Base58Check → ECDSA → SHA-256 → Address",
+      "Private Key → ECDSA → Public Key → SHA-256 + RIPEMD-160 → Base58Check → Bitcoin Address",
+      "Public Key → ECDSA → Private Key → RIPEMD-160 → Bitcoin Address"
+    ],
+    answer: 2,
+    explanation: "The derivation flows one way: the private key is passed through ECDSA to produce a 64-byte public key. That public key is hashed with SHA-256, then RIPEMD-160, producing 20 bytes. Base58Check encodes those bytes into the familiar Bitcoin address string. Each step is a trapdoor — easy forward, impossible to reverse."
+  },
+  {
+    q: "An investigator finds wallet.dat on a seized laptop. The file is encrypted with AES-256-CBC. What can the investigator still establish — and what tool would they use to attempt key recovery?",
+    options: [
+      "Nothing useful can be established from an encrypted wallet.dat — the file must be decrypted before any forensic value can be extracted.",
+      "The investigator can read the addresses from the unencrypted key pool and correlate them with the blockchain. For key recovery, they would submit the file to Hashcat or John the Ripper for passphrase cracking.",
+      "The investigator can read both the private keys and addresses directly, since AES-256 encryption applies only to the transaction history, not the key pool.",
+      "The investigator can establish the wallet version and creation date only. Key recovery requires a court order served to the Bitcoin Core development team."
+    ],
+    answer: 1,
+    explanation: "Even an encrypted wallet.dat contains addresses in the unencrypted portion of the key pool — these can be read directly and matched against the transaction chain. For the private keys, the investigator submits the file to Hashcat or John the Ripper to attempt passphrase recovery through dictionary or brute-force attack."
+  },
+  {
+    q: "Bitcoin does not work like a bank account with a balance. Which model best describes how Bitcoin tracks ownership?",
+    options: [
+      "A central database maintained by miners that stores each user's current balance, updated after every transaction.",
+      "A system of Unspent Transaction Outputs (UTXOs) — your balance is the sum of all unspent outputs pointing to your addresses. Each UTXO can only be spent once in full.",
+      "A running account balance similar to a bank, where each transaction adds or subtracts from a stored total.",
+      "A wallet file on your device that stores the exact amount of Bitcoin you own as a numeric field, updated locally after each transaction."
+    ],
+    answer: 1,
+    explanation: "Bitcoin uses UTXOs — Unspent Transaction Outputs. Think of them as sealed envelopes of Bitcoin. Each one can be spent only once and in full. Your 'balance' is not stored anywhere — it is calculated by summing all unspent outputs pointing to your addresses. Bitcoin Core stores the current UTXO set in the chainstate/ directory for fast lookups."
+  },
+  {
+    q: "A suspect sends 0.14985 BTC and the transaction creates two outputs: 0.09 BTC to an external address and 0.05973 BTC to a second address. What is the second output — and why is it forensically critical?",
+    options: [
+      "The second output is the miner's fee. It is forensically critical because it identifies which miner processed the transaction.",
+      "The second output is a payment to a second recipient. It is forensically critical because it reveals the suspect had two intended payees.",
+      "The second output is the change address — the leftover value returned to an address the sender controls. It is forensically critical because it belongs to the same wallet as the input, linking both addresses to the same suspect.",
+      "The second output is an automatic blockchain tax. It is forensically critical because it identifies the country of origin of the transaction."
+    ],
+    answer: 2,
+    explanation: "When you cannot spend just part of a UTXO, the system takes the full amount and creates new outputs — one for the recipient and one returning the change to an address you control. That change address belongs to the same wallet as the input. Finding it in a suspect's wallet file proves both addresses are controlled by the same person."
+  },
+  {
+    q: "How is the miner's fee calculated in a Bitcoin transaction — and where does it appear in the transaction record?",
+    options: [
+      "The fee is a separate mandatory field set by the sender before broadcasting. It appears as a named field in the transaction output list.",
+      "The fee is calculated by the exchange and deducted from the sender's account before the transaction is broadcast.",
+      "The fee is simply what goes unclaimed — the difference between the total inputs and total outputs. It does not appear as a separate field; the miner collects whatever is left.",
+      "The fee is a fixed percentage defined by the Bitcoin protocol and stored in the block header as a separate field."
+    ],
+    answer: 2,
+    explanation: "The miner's fee is not a named field — it is what goes unclaimed. Total inputs minus total outputs equals the fee, which the miner who includes the transaction in a block collects. This means an investigator reading a transaction can calculate the fee themselves: inputs − outputs = fee paid."
+  },
+  {
+    q: "When a Bitcoin transaction is broadcast, how does it reach every node on the network?",
+    options: [
+      "It is sent to a central relay server maintained by the Bitcoin Foundation, which then distributes it to all connected nodes simultaneously.",
+      "It propagates peer-to-peer — the sender's wallet sends it to roughly 8 directly connected peers (entry nodes), who relay it to their peers, and so on, until every node has a copy.",
+      "It is encrypted and sent to the mining pool that wins the next block, which then broadcasts the confirmed transaction to the network.",
+      "The sender uploads the transaction to a public API endpoint, from which all wallets poll at regular intervals to stay synchronised."
+    ],
+    answer: 1,
+    explanation: "Bitcoin uses a gossip protocol: the sender broadcasts to roughly 8 directly connected peers called entry nodes. Each of those relays to their peers, and within seconds every node worldwide holds a copy. There is no central server. This is why Bitcoin is censorship-resistant — and why IP attribution analysis has to work probabilistically rather than definitively."
+  },
+  {
+    q: "Why does the fact that Bitcoin uses unencrypted TCP connections create a forensic opportunity for investigators?",
+    options: [
+      "Unencrypted TCP allows investigators to read the private keys of all transaction participants as the data passes through routers.",
+      "Because TCP is unencrypted, network traffic can be observed. The first node to broadcast a transaction is very likely the originator, allowing probabilistic IP attribution — linking a transaction to the IP address that first sent it.",
+      "Unencrypted TCP means all Bitcoin transactions are stored in plain text on ISP servers, which can be subpoenaed directly.",
+      "TCP connections require both parties to register with ICANN before communicating, creating a name-to-IP record that investigators can access."
+    ],
+    answer: 1,
+    explanation: "Because Bitcoin's P2P layer uses unencrypted TCP, observers on the network can see which node first broadcasts a transaction. Statistical analysis of which node broadcast earliest — combined with timing data — allows researchers and law enforcement to probabilistically identify the originating IP address. This is a real technique used in prosecutions."
+  },
+  {
+    q: "A suspect uses Tor Browser when accessing Bitcoin-related websites. Why is the presence of Tor Browser in the browser history forensically significant — even when no specific URLs are recoverable?",
+    options: [
+      "Tor Browser is illegal in most jurisdictions, so its presence is automatically incriminating regardless of how it was used.",
+      "Tor Browser stores all browsing history in a hidden encrypted database that investigators can recover with specialist tools.",
+      "Tor Browser is not installed by default on any operating system — its presence shows the suspect deliberately installed a tool designed to hide their network identity. Even without URLs, this is evidence of awareness and intent to conceal activity.",
+      "Tor Browser automatically encrypts wallet.dat files on any device where it is installed, explaining the wallet encryption found on the seized device."
+    ],
+    answer: 2,
+    explanation: "Tor Browser requires deliberate installation. Finding it on a seized device — especially when correlated with the dates of Bitcoin transactions — suggests the suspect understood that Bitcoin network activity could be traced to an IP address and took steps to prevent it. This is relevant to both intent and technical sophistication, even when no specific URLs survive in history."
+  },
+  {
+    q: "What are the three converging lines of evidence an investigator uses to attribute a Bitcoin address to a real person?",
+    options: [
+      "Private key recovery, email interception, and physical surveillance of the suspect.",
+      "On-chain tracing (following funds through the blockchain), device forensics (recovering wallet.dat and browser history), and third-party records (subpoenaing exchanges for KYC-verified account data).",
+      "Blockchain analysis, CCTV footage from Bitcoin ATMs, and social media profiling.",
+      "Hash cracking, network packet capture, and registry analysis."
+    ],
+    answer: 1,
+    explanation: "Attribution requires combining three sources: (1) on-chain tracing — following funds hop by hop until they reach a known entity like an exchange; (2) device forensics — recovering wallet.dat, browser history, chat logs, and seed phrases from the seized device; (3) third-party records — subpoenaing exchanges like Coinbase or Kraken, which are legally required to verify customer identity and can link an address to a named account."
+  },
+  {
+    q: "An investigator finds a Bitcoin address with a final balance of zero on a block explorer. Is this address forensically useful — and what does a zero balance tell them?",
+    options: [
+      "No — a zero balance means no activity occurred at this address and it should be excluded from the investigation.",
+      "Yes — a zero balance with transaction history shows the address received and then spent everything. This is a common pattern when funds are deliberately moved to avoid tracing, but the full transaction history remains visible and traceable.",
+      "No — block explorers only display active addresses with non-zero balances. Zero balance addresses have been purged from the blockchain.",
+      "Yes — a zero balance indicates the private key was successfully cracked by an earlier investigator and the funds were seized."
+    ],
+    answer: 1,
+    explanation: "A zero balance is forensically significant, not useless. It means the address received Bitcoin and spent it — potentially moving funds deliberately to obscure the trail. The full transaction history is still permanently on the blockchain: every input, every output, every timestamp. The investigator can trace where funds came from and where they went, regardless of current balance."
+  },
+  {
+    q: "What is wallet.dat and where is it stored on a Windows machine running Bitcoin Core?",
+    options: [
+      "A text file containing the user's Bitcoin balance, stored in C:\\Program Files\\Bitcoin\\.",
+      "A Berkeley DB file containing private keys and address data, stored in AppData\\Roaming\\Bitcoin\\.",
+      "An encrypted XML file containing transaction history, stored in the user's Documents folder.",
+      "A SQLite database containing the local copy of the blockchain, stored in C:\\Windows\\System32\\."
+    ],
+    answer: 1,
+    explanation: "wallet.dat is a Berkeley DB file stored at C:\\Users\\[username]\\AppData\\Roaming\\Bitcoin\\ on Windows. It contains the private keys and address pool. If unencrypted, it is directly readable. If encrypted with AES-256-CBC, tools like Hashcat or John the Ripper can be used to attempt passphrase recovery. Finding and extracting this file is a primary objective in any Bitcoin forensics investigation."
+  },
+  {
+    q: "A forensic investigator recovers a piece of paper from a suspect's home with 24 common English words written on it. What is this likely to be — and why is it forensically equivalent to finding the private key?",
+    options: [
+      "A passphrase for an encrypted email account. It is equivalent to the private key because email accounts often contain Bitcoin transaction confirmations.",
+      "A seed phrase. It can regenerate every private key in the entire wallet from scratch, giving the same level of access as the key file itself.",
+      "A recovery code for a cryptocurrency exchange account. It gives read-only access to the account but cannot be used to move funds.",
+      "A one-time password for two-factor authentication. It is equivalent to the private key because it provides temporary access to the wallet."
+    ],
+    answer: 1,
+    explanation: "A seed phrase — typically 12 or 24 common English words — is the master backup of the entire wallet. It uses a standard called BIP39 and can regenerate every private key the wallet ever produced. Whoever holds the seed phrase has complete control over all funds in the wallet, on any device. It is forensically equivalent to finding wallet.dat with unencrypted keys."
+  },
+  {
+    q: "Why is subpoenaing a cryptocurrency exchange often the single strongest piece of attribution evidence in a Bitcoin prosecution?",
+    options: [
+      "Exchanges store copies of all private keys and can provide them directly to law enforcement, giving investigators full control over the suspect's funds.",
+      "Exchanges are legally required to verify customer identity through KYC processes. A court order to an exchange can link a specific Bitcoin address to a named, verified account — providing a real-world identity anchor.",
+      "Exchanges maintain detailed records of every transaction on the Bitcoin blockchain and can identify the suspect's physical location at the time of each payment.",
+      "Exchanges hold escrow for all Bitcoin transactions and can reverse payments upon receipt of a court order, making them central to both attribution and asset recovery."
+    ],
+    answer: 1,
+    explanation: "Exchanges like Coinbase, Kraken, and Binance are regulated financial institutions legally required to perform Know Your Customer (KYC) verification — collecting government ID, address, and other identifying information. A subpoena or court order linking a Bitcoin address to an account on that exchange provides a direct, court-ready connection between a pseudonymous address and a real person. This is typically the strongest single evidence item in a prosecution."
+  },
+  {
+    q: "What does the blk.dat file found in Bitcoin Core's blocks/ directory contain — and what can an investigator infer from its presence on a seized device?",
+    options: [
+      "blk.dat contains the user's private keys in an alternate backup format. Its presence confirms the suspect ran a full Bitcoin node.",
+      "blk.dat contains raw Bitcoin block data downloaded from the network. Its presence confirms the device was running Bitcoin Core as a full or partial node, and its sync timestamp can be correlated with the transaction timeline.",
+      "blk.dat is a log file recording every login attempt to the Bitcoin Core wallet interface. It can be used to establish the times when the suspect actively used the wallet.",
+      "blk.dat contains encrypted chat logs between Bitcoin Core users. Its presence suggests the suspect communicated with other wallet holders through the Bitcoin network."
+    ],
+    answer: 1,
+    explanation: "blk.dat stores actual raw Bitcoin block data — the local copy of the blockchain downloaded from the network. Its presence confirms the device was running Bitcoin Core (not just a lightweight web wallet) and that it downloaded and stored blockchain data. The sync height and timestamps can be correlated with the transaction timeline to establish when the node was last active."
+  },
+  {
+    q: "Summarising the full picture from Lecture 19 — which statement most accurately describes Bitcoin from a forensic perspective?",
+    options: [
+      "Bitcoin is untraceable by design. Once funds pass through a mixer, all investigative avenues are exhausted and attribution becomes impossible.",
+      "Bitcoin is anonymous. While transactions are public, the mathematical complexity of blockchain analysis means practical attribution is beyond the capability of most investigators.",
+      "Bitcoin is pseudonymous and permanently traceable. Every transaction is public, the private key on the seized device is the forensic target, change addresses reveal wallet ownership, and attribution is completed by combining on-chain tracing with device forensics and exchange records.",
+      "Bitcoin is fully transparent. Every address is linked to a real identity through the exchange registration system, making attribution straightforward in all cases."
+    ],
+    answer: 2,
+    explanation: "The complete picture: Bitcoin is pseudonymous, not anonymous — the full transaction history of every address is permanently public. The private key (in wallet.dat or a seed phrase) is the forensic target. Change addresses reveal wallet ownership. Evidence is scattered across the device. Attribution is completed when the chain reaches an exchange with KYC records. Mixing complicates but does not end the investigation — device evidence and third-party records remain available regardless."
+  }
+];
+
+let answered = 0;
+let score = 0;
+
+function buildQuiz() {
+  const container = document.getElementById('quiz');
+  container.innerHTML = '';
+  answered = 0;
+  score = 0;
+  updateProgress();
+
+  questions.forEach((q, i) => {
+    const card = document.createElement('div');
+    card.className = 'question-card';
+    card.id = `card-${i}`;
+
+    const letters = ['A', 'B', 'C', 'D'];
+
+    card.innerHTML = `
+      <div class="q-number">Question ${String(i+1).padStart(2,'0')} / 20</div>
+      <div class="q-text">${q.q}</div>
+      <div class="options">
+        ${q.options.map((opt, j) => `
+          <button class="option" data-q="${i}" data-opt="${j}" onclick="selectAnswer(${i},${j})">
+            <span class="option-letter">${letters[j]}</span>
+            <span>${opt}</span>
+          </button>
+        `).join('')}
+      </div>
+      <div class="feedback" id="fb-${i}"></div>
+    `;
+    container.appendChild(card);
+  });
+
+  document.getElementById('score-panel').classList.remove('show');
+}
+
+function selectAnswer(qIndex, optIndex) {
+  const q = questions[qIndex];
+  const card = document.getElementById(`card-${qIndex}`);
+  const buttons = card.querySelectorAll('.option');
+  const fb = document.getElementById(`fb-${qIndex}`);
+
+  buttons.forEach(b => b.disabled = true);
+
+  const isCorrect = optIndex === q.answer;
+
+  buttons[optIndex].classList.add(isCorrect ? 'correct' : 'wrong');
+  if (!isCorrect) {
+    buttons[q.answer].classList.add('reveal-correct');
+  }
+
+  card.classList.add('answered', isCorrect ? 'correct-card' : 'wrong-card');
+
+  fb.className = `feedback show ${isCorrect ? 'correct-fb' : 'wrong-fb'}`;
+  fb.innerHTML = `${isCorrect ? '✓ Correct' : '✗ Incorrect'} — ${q.explanation}`;
+
+  if (isCorrect) score++;
+  answered++;
+  updateProgress();
+
+  if (answered === questions.length) {
+    setTimeout(showScore, 600);
+  }
+}
+
+function updateProgress() {
+  document.getElementById('prog-label').textContent = `${answered} / 20 answered`;
+  document.getElementById('score-label').textContent = `Score: ${score}`;
+  document.getElementById('progress-fill').style.width = `${(answered / 20) * 100}%`;
+}
+
+function showScore() {
+  const panel = document.getElementById('score-panel');
+  const pct = Math.round((score / 20) * 100);
+  document.getElementById('final-score').textContent = `${score}/20`;
+
+  const badge = document.getElementById('grade-badge');
+  let grade, color;
+  if (pct >= 90)      { grade = 'Excellent — A'; color = '#00ff87'; }
+  else if (pct >= 75) { grade = 'Good — B';       color = '#00e5ff'; }
+  else if (pct >= 60) { grade = 'Pass — C';        color = '#ffd700'; }
+  else                { grade = 'Needs Revision — F'; color = '#ff4d6d'; }
+
+  badge.textContent = grade;
+  badge.style.background = color + '15';
+  badge.style.border = `1px solid ${color}`;
+  badge.style.color = color;
+
+  panel.classList.add('show');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function resetQuiz() {
+  buildQuiz();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+buildQuiz();
+</script>
+</body>
+</html>
