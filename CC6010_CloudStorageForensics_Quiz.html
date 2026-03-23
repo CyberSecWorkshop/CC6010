@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CC6010 – Cloud Storage Forensics Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
+
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --card: #161f30;
+    --border: #1e2d45;
+    --accent: #00e5ff;
+    --accent2: #ff4d6d;
+    --correct: #00ff87;
+    --wrong: #ff4d6d;
+    --text: #e2eaf4;
+    --muted: #6b7fa3;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    padding: 2rem 1rem 4rem;
+    background-image:
+      radial-gradient(ellipse 80% 40% at 50% -10%, rgba(0,229,255,0.07) 0%, transparent 70%),
+      radial-gradient(ellipse 50% 30% at 90% 80%, rgba(255,77,109,0.05) 0%, transparent 60%);
+  }
+
+  header {
+    text-align: center;
+    max-width: 760px;
+    margin: 0 auto 3rem;
+  }
+
+  .tag {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    border: 1px solid rgba(0,229,255,0.3);
+    padding: 4px 12px;
+    border-radius: 2px;
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    font-size: clamp(1.8rem, 5vw, 2.8rem);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.5rem;
+  }
+
+  h1 span { color: var(--accent); }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 0.95rem;
+    font-family: var(--mono);
+  }
+
+  .quiz-container {
+    max-width: 760px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .question-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    transition: border-color 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .question-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px; height: 100%;
+    background: var(--accent);
+    opacity: 0.4;
+  }
+
+  .question-card.answered::before { opacity: 1; }
+  .question-card.correct-card::before { background: var(--correct); }
+  .question-card.wrong-card::before { background: var(--wrong); }
+
+  .q-number {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    margin-bottom: 0.6rem;
+    text-transform: uppercase;
+  }
+
+  .q-text {
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.5;
+    margin-bottom: 1.2rem;
+    color: #cdd9ee;
+  }
+
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .option {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: transparent;
+    font-family: var(--sans);
+    font-size: 0.9rem;
+    color: var(--text);
+    text-align: left;
+    line-height: 1.4;
+    width: 100%;
+  }
+
+  .option:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: rgba(0,229,255,0.04);
+  }
+
+  .option-letter {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+    min-width: 1.2rem;
+    padding-top: 1px;
+    flex-shrink: 0;
+  }
+
+  .option.correct {
+    border-color: var(--correct);
+    background: rgba(0,255,135,0.06);
+    color: var(--correct);
+  }
+
+  .option.correct .option-letter { color: var(--correct); }
+
+  .option.wrong {
+    border-color: var(--wrong);
+    background: rgba(255,77,109,0.06);
+    color: var(--wrong);
+  }
+
+  .option.wrong .option-letter { color: var(--wrong); }
+
+  .option.reveal-correct {
+    border-color: rgba(0,255,135,0.4);
+    background: rgba(0,255,135,0.03);
+    color: var(--correct);
+  }
+
+  .option:disabled { cursor: default; }
+
+  .feedback {
+    margin-top: 1rem;
+    padding: 0.8rem 1rem;
+    border-radius: 5px;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    line-height: 1.6;
+    display: none;
+    border-left: 3px solid;
+  }
+
+  .feedback.show { display: block; }
+  .feedback.correct-fb { border-color: var(--correct); background: rgba(0,255,135,0.05); color: #a0ffd4; }
+  .feedback.wrong-fb { border-color: var(--wrong); background: rgba(255,77,109,0.05); color: #ffa0b2; }
+
+  .score-panel {
+    max-width: 760px;
+    margin: 2rem auto 0;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 2rem;
+    text-align: center;
+    display: none;
+  }
+
+  .score-panel.show { display: block; }
+
+  .score-big {
+    font-size: 4rem;
+    font-weight: 800;
+    font-family: var(--mono);
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 0.5rem;
+  }
+
+  .score-label {
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .grade-badge {
+    display: inline-block;
+    padding: 6px 20px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+    margin-bottom: 1.5rem;
+  }
+
+  .reset-btn {
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    padding: 10px 28px;
+    border-radius: 4px;
+    cursor: pointer;
+    letter-spacing: 0.1em;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+
+  .reset-btn:hover { background: rgba(0,229,255,0.1); }
+
+  .progress-bar {
+    max-width: 760px;
+    margin: 0 auto 2rem;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), #00b4d8);
+    transition: width 0.4s ease;
+    width: 0%;
+  }
+
+  .progress-text {
+    max-width: 760px;
+    margin: 0 auto 0.5rem;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="tag">CC6010 · Digital Investigation · Lecture 17</div>
+  <h1>Cloud Storage<br><span>Forensics</span></h1>
+  <p class="subtitle">20-question multiple choice quiz</p>
+</header>
+
+<div class="progress-text">
+  <span id="prog-label">0 / 20 answered</span>
+  <span id="score-label">Score: 0</span>
+</div>
+<div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+
+<div class="quiz-container" id="quiz"></div>
+
+<div class="score-panel" id="score-panel">
+  <div class="score-big" id="final-score">0/20</div>
+  <div class="score-label">Final Score</div>
+  <div class="grade-badge" id="grade-badge"></div>
+  <br>
+  <button class="reset-btn" onclick="resetQuiz()">↺ Retake Quiz</button>
+</div>
+
+<script>
+const questions = [
+  {
+    q: "The Dropbox client installs itself into which location on a Windows machine?",
+    options: [
+      "C:\\Program Files\\Dropbox",
+      "C:\\Users\\[username]\\AppData\\Roaming\\Dropbox",
+      "C:\\Windows\\System32\\Dropbox",
+      "C:\\ProgramData\\Dropbox"
+    ],
+    answer: 1,
+    explanation: "Dropbox installs inside the user profile under AppData\\Roaming\\Dropbox, not system-wide. This means each Windows user account has its own separate Dropbox installation, and the install path directly identifies which user was using the service."
+  },
+  {
+    q: "What does the Host.db file left by Dropbox contain, and in what format?",
+    options: [
+      "The user's account password, stored in MD5 hash format",
+      "A log of every file sync event, stored as plain text",
+      "The local sync folder path, encoded in Base64",
+      "The Dropbox server address, stored as an encrypted string"
+    ],
+    answer: 2,
+    explanation: "Host.db stores the path to the local Dropbox sync folder. The path is encoded in Base64, which is not encryption — it can be decoded instantly with any Base64 decoder. For example, QzpcVXNlcnNcQ2xvdWRTdG9yYWdlXERyb3Bib3g= decodes to C:\\Users\\CloudStorage\\Dropbox."
+  },
+  {
+    q: "When was Dropbox's filecache.dbx configuration file encrypted, and why does this matter forensically?",
+    options: [
+      "It was encrypted in 2007 at launch, so it has never been readable",
+      "It was encrypted in 2011, so older installations may still be readable without a tool",
+      "It was encrypted in 2015, so most modern cases will have readable files",
+      "It has never been encrypted and can always be opened directly"
+    ],
+    answer: 1,
+    explanation: "Dropbox encrypted the configuration files in 2011. This matters because older installations or forensic images from before that date may contain readable config files without needing the decryption tool. Post-2011, the Dropbox Decryptor tool from Magnet Forensics is required."
+  },
+  {
+    q: "To decrypt the Dropbox filecache.dbx, which of the following is NOT one of the required inputs?",
+    options: [
+      "The local Windows user password",
+      "The filecache.dbx file itself",
+      "The user's Dropbox account recovery email",
+      "A registry value from NTUSER.DAT\\Software\\Dropbox\\ks\\Client"
+    ],
+    answer: 2,
+    explanation: "Decrypting filecache.dbx requires four things: the file itself, the Windows DPAPI Protect folder, a specific registry value, and the local Windows user password. The Dropbox account recovery email is not part of this process — decryption is handled locally using Windows credentials."
+  },
+  {
+    q: "After a file is deleted from the local Dropbox sync folder, what happens to its record in filecache.db?",
+    options: [
+      "The record is immediately and permanently removed",
+      "The record is moved to a separate deleted_files table",
+      "The record remains in the database and is not automatically purged",
+      "The record is overwritten with zeroes within 24 hours"
+    ],
+    answer: 2,
+    explanation: "filecache.db does not purge records when files are deleted. The entry for a deleted file — including its server path, local name, timestamps, and size — remains in the database. This makes it possible to prove a file existed and was synced even after it has been removed from the device."
+  },
+  {
+    q: "What can an investigator recover by logging into a free Dropbox account through a browser?",
+    options: [
+      "Files deleted more than 180 days ago with full content intact",
+      "Files deleted within the last 30 days, version history, and linked device information",
+      "Only the current files — deleted items are never visible online",
+      "The user's password in plaintext from the account settings page"
+    ],
+    answer: 1,
+    explanation: "The Dropbox web interface gives access to deleted files within a 30-day window for free accounts, full version history for every file, and a list of all devices ever linked to the account along with recent browser sessions and IP addresses."
+  },
+  {
+    q: "Which two strings should an investigator search for in a RAM dump to find Dropbox credentials entered via a browser?",
+    options: [
+      "dropbox_user and dropbox_pass",
+      "login_email and login_password",
+      "auth_token and session_id",
+      "user_name and user_hash"
+    ],
+    answer: 1,
+    explanation: "When a user logs into Dropbox through a browser, the strings login_email and login_password appear in RAM in plaintext during the active session. These same strings can also be found in hiberfil.sys and pagefile.sys if the machine was hibernated or paged memory to disk."
+  },
+  {
+    q: "What forensic evidence survives on a Windows machine after Dropbox is fully uninstalled?",
+    options: [
+      "Only the filecache.dbx file, which is preserved by Windows automatically",
+      "Nothing — the uninstaller removes all traces completely",
+      "Prefetch files, the registry key stub, and the local sync folder with its files",
+      "Only the Desktop shortcut file, which Windows does not delete"
+    ],
+    answer: 2,
+    explanation: "Uninstalling Dropbox removes the AppData configuration folder but leaves behind the prefetch files in C:\\Windows\\Prefetch, an empty registry key at HKCU\\Software\\Dropbox, and — most importantly — the entire local sync folder with its files, which the uninstaller does not touch."
+  },
+  {
+    q: "What forensic information does a Dropbox prefetch file provide?",
+    options: [
+      "The contents of files that were synced through the client",
+      "The Dropbox account email address and linked device list",
+      "Confirmation that the Dropbox executable was run and the timestamps of first and last execution",
+      "The registry keys that Dropbox created during installation"
+    ],
+    answer: 2,
+    explanation: "Windows creates a prefetch file the first time any application runs and updates it on subsequent runs. The Dropbox prefetch file proves the client was executed on this machine and records when it was first and last run — useful even if the application has since been uninstalled."
+  },
+  {
+    q: "On an iOS device, which Dropbox file contains the user's name and email address and can be read without decryption?",
+    options: [
+      "The filecache.dbx database inside the DropboxPrivate folder",
+      "The com.getdropbox.Dropbox.plist file inside the Preferences folder",
+      "The session.db file inside the Cookies folder",
+      "The sync.log file inside the Cache folder"
+    ],
+    answer: 1,
+    explanation: "The Preferences folder within the Dropbox iOS app directory contains com.getdropbox.Dropbox.plist, a property list file that stores the user's name and email in a readable format. No decryption is required to access this file, though a physical acquisition is needed to reach the app's sandboxed directory."
+  },
+  {
+    q: "The Google Drive client stores its per-user configuration in which location?",
+    options: [
+      "C:\\Program Files\\Google\\Drive",
+      "C:\\Users\\[username]\\AppData\\Local\\Google\\Drive",
+      "C:\\Windows\\System32\\Google\\Drive",
+      "C:\\Users\\[username]\\AppData\\Roaming\\Google\\Drive"
+    ],
+    answer: 1,
+    explanation: "Unlike its executable, which installs to C:\\Program Files\\Google\\Drive, the Google Drive client stores its per-user configuration at C:\\Users\\[username]\\AppData\\Local\\Google\\Drive. This separation means the same executable serves all users on the machine, but each user has their own separate account configuration."
+  },
+  {
+    q: "What three pieces of information does Google Drive's sync_config.db store?",
+    options: [
+      "Server address, sync frequency, and encryption key",
+      "User email, client version, and local sync root path",
+      "File checksums, upload timestamps, and share permissions",
+      "Account creation date, storage quota, and billing status"
+    ],
+    answer: 1,
+    explanation: "sync_config.db is a SQLite3 database containing the Google account email address linked to this installation, the version of the Google Drive client installed, and the local sync root path — the folder on the machine being synchronised with the Drive account."
+  },
+  {
+    q: "In Google Drive's snapshot.db, what is the difference between the cloud_entry table and the local_entry table?",
+    options: [
+      "cloud_entry holds deleted files only; local_entry holds active files only",
+      "cloud_entry records files on Google's server; local_entry records files downloaded to the local machine",
+      "cloud_entry is encrypted; local_entry is stored in plain text",
+      "cloud_entry records file metadata; local_entry records file contents"
+    ],
+    answer: 1,
+    explanation: "The cloud_entry table records the last known state of every file on the Google Drive server — including name, timestamps, URL, MD5 hash, size, and sharing status. The local_entry table records only files that were actually synced and stored on the local machine. Comparing the two reveals which files existed on the server but were never downloaded locally."
+  },
+  {
+    q: "What does the MD5 hash stored in snapshot.db allow an investigator to do?",
+    options: [
+      "Decrypt the contents of the Google Drive sync folder",
+      "Confirm a specific file was present even if its name has been changed",
+      "Determine the file's creation date on Google's servers",
+      "Reconstruct deleted rows from the database free pages"
+    ],
+    answer: 1,
+    explanation: "An MD5 hash is a unique fingerprint for a file's contents. Because the hash is based on content rather than filename, it remains the same even if the file is renamed. An investigator can use it to confirm a specific file was synced — for example, matching it against a known-bad hash set or proving it matches a file found elsewhere."
+  },
+  {
+    q: "After a file is deleted from Google Drive, how might its record still be recovered from snapshot.db?",
+    options: [
+      "Google Drive moves deleted records to a hidden archive table automatically",
+      "The sync client backs up snapshot.db to a separate recovery file on deletion",
+      "SQLite marks deleted rows as free space but does not overwrite them immediately, so forensic tools can recover the data",
+      "The record is preserved in sync_config.db when it is removed from snapshot.db"
+    ],
+    answer: 2,
+    explanation: "SQLite uses a free-page structure — when a row is deleted, the space is marked as available for reuse but the actual data is not zeroed out. Until something else is written over it, tools that examine raw SQLite free pages, or even a keyword search on the database file itself, can surface the deleted filename and its associated metadata."
+  },
+  {
+    q: "In Google Drive's sync_log.log, which three search strings are most useful for reconstructing file activity?",
+    options: [
+      "FILE_ADD, FILE_REMOVE, and FILE_EDIT",
+      "CREATED, DELETED, and MODIFIED",
+      "RawEvent(CREATE, RawEvent(DELETE, and RawEvent(MODIFY",
+      "SYNC_START, SYNC_END, and SYNC_ERROR"
+    ],
+    answer: 2,
+    explanation: "The sync_log.log file uses the format RawEvent(CREATE, RawEvent(DELETE, and RawEvent(MODIFY to record file activity. Each event is timestamped, giving a chronological record of exactly what happened to which file and when — independently of the snapshot.db database."
+  },
+  {
+    q: "Why is it significant that sync_log.log entries have been recovered from unallocated disk space after Google Drive is uninstalled?",
+    options: [
+      "It means the log file is automatically backed up to a hidden partition",
+      "It proves the log is stored in a protected system folder that uninstallers cannot reach",
+      "It shows that file activity evidence can persist on disk even after the application and its logs are deleted",
+      "It means the log is re-created by Windows after uninstallation"
+    ],
+    answer: 2,
+    explanation: "When a file is deleted, its data is not immediately wiped from disk — only the reference to it is removed. Fragments of sync_log.log have been found in unallocated disk space after Google Drive is uninstalled, meaning a forensic examiner may still be able to reconstruct a timeline of file activity even when the investigator finds no Google Drive installation on the machine."
+  },
+  {
+    q: "What strings should an investigator search for in RAM when the Google Drive client is actively running?",
+    options: [
+      "google_email and google_password",
+      "user_emailvalue and local_sync_root_pathvalue",
+      "drive_account and drive_token",
+      "auth_email and auth_secret"
+    ],
+    answer: 1,
+    explanation: "With the Google Drive client running, searching memory for user_emailvalue returns the signed-in email address, and local_sync_root_pathvalue returns the sync folder path. The paths to snapshot.db and sync_config.db also appear in memory, which is useful if those files have been moved or obscured on disk."
+  },
+  {
+    q: "On iOS, the Google Drive app's Items_snapshot database records which pieces of information per file?",
+    options: [
+      "File name, type, MD5 hash, modified date, and sharing status",
+      "File name, download count, and billing category only",
+      "File name and creation date only",
+      "File name, local cache path, and encryption key"
+    ],
+    answer: 0,
+    explanation: "The Items_snapshot_[email].db database in the Google Drive iOS app's Documents folder contains a full inventory of every file on the user's Drive. For each file it records the identifier, title, file type, MD5 hash, who last modified it and when, the last viewed date, and whether it was shared — making it one of the most complete single sources of Drive file evidence on a mobile device."
+  },
+  {
+    q: "Both Dropbox and Google Drive were tested in the lecture using a controlled environment. What was the purpose of using RegShot alongside DiskPulse during the installation phase?",
+    options: [
+      "RegShot captured network traffic; DiskPulse captured file hashes",
+      "RegShot tracked registry changes; DiskPulse tracked file system changes",
+      "RegShot logged browser activity; DiskPulse logged RAM changes",
+      "RegShot scanned for malware; DiskPulse monitored CPU usage"
+    ],
+    answer: 1,
+    explanation: "DiskPulse monitors the file system and records every file that is created, modified, or deleted during a defined period. RegShot takes before-and-after snapshots of the Windows registry and compares them to show exactly which keys and values were added or changed. Together they give a complete picture of what each cloud storage client does to a machine during installation."
+  }
+];
+
+let answered = 0;
+let score = 0;
+
+function buildQuiz() {
+  const container = document.getElementById('quiz');
+  container.innerHTML = '';
+  answered = 0;
+  score = 0;
+  updateProgress();
+
+  questions.forEach((q, i) => {
+    const card = document.createElement('div');
+    card.className = 'question-card';
+    card.id = `card-${i}`;
+    const letters = ['A', 'B', 'C', 'D'];
+
+    card.innerHTML = `
+      <div class="q-number">Question ${String(i+1).padStart(2,'0')} / 20</div>
+      <div class="q-text">${q.q}</div>
+      <div class="options">
+        ${q.options.map((opt, j) => `
+          <button class="option" data-q="${i}" data-opt="${j}" onclick="selectAnswer(${i},${j})">
+            <span class="option-letter">${letters[j]}</span>
+            <span>${opt}</span>
+          </button>
+        `).join('')}
+      </div>
+      <div class="feedback" id="fb-${i}"></div>
+    `;
+    container.appendChild(card);
+  });
+
+  document.getElementById('score-panel').classList.remove('show');
+}
+
+function selectAnswer(qIndex, optIndex) {
+  const q = questions[qIndex];
+  const card = document.getElementById(`card-${qIndex}`);
+  const buttons = card.querySelectorAll('.option');
+  const fb = document.getElementById(`fb-${qIndex}`);
+
+  buttons.forEach(b => b.disabled = true);
+
+  const isCorrect = optIndex === q.answer;
+  buttons[optIndex].classList.add(isCorrect ? 'correct' : 'wrong');
+  if (!isCorrect) buttons[q.answer].classList.add('reveal-correct');
+
+  card.classList.add('answered', isCorrect ? 'correct-card' : 'wrong-card');
+  fb.className = `feedback show ${isCorrect ? 'correct-fb' : 'wrong-fb'}`;
+  fb.innerHTML = `${isCorrect ? '✓ Correct' : '✗ Incorrect'} — ${q.explanation}`;
+
+  if (isCorrect) score++;
+  answered++;
+  updateProgress();
+
+  if (answered === questions.length) setTimeout(showScore, 600);
+}
+
+function updateProgress() {
+  document.getElementById('prog-label').textContent = `${answered} / 20 answered`;
+  document.getElementById('score-label').textContent = `Score: ${score}`;
+  document.getElementById('progress-fill').style.width = `${(answered / 20) * 100}%`;
+}
+
+function showScore() {
+  const panel = document.getElementById('score-panel');
+  const pct = Math.round((score / 20) * 100);
+  document.getElementById('final-score').textContent = `${score}/20`;
+
+  const badge = document.getElementById('grade-badge');
+  let grade, color;
+  if (pct >= 90)      { grade = 'Excellent — A'; color = '#00ff87'; }
+  else if (pct >= 75) { grade = 'Good — B';       color = '#00e5ff'; }
+  else if (pct >= 60) { grade = 'Pass — C';        color = '#ffd700'; }
+  else                { grade = 'Needs Revision — F'; color = '#ff4d6d'; }
+
+  badge.textContent = grade;
+  badge.style.background = color + '15';
+  badge.style.border = `1px solid ${color}`;
+  badge.style.color = color;
+
+  panel.classList.add('show');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function resetQuiz() {
+  buildQuiz();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+buildQuiz();
+</script>
+</body>
+</html>
